@@ -2,6 +2,10 @@
 
 package sh.hnet.comfychair.ui.components.workflow
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -273,17 +277,16 @@ fun AllFieldsSheet(
             }
             // Add a field apart from the fields: an action, not one of them
             item(key = "add_field") {
-                SegmentedListItem(
+                // A lone action that creates something: a tonal button (the editor then asks for the value)
+                FilledTonalButton(
                     onClick = onAddField,
-                    shapes = groupShapes(0, 1),
-                    colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                    supportingContent = { Text(stringResource(R.string.desc_add_field)) },
-                    leadingContent = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                    verticalAlignment = Alignment.CenterVertically,
+                    shapes = ButtonDefaults.shapes(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = if (customFields.isNotEmpty()) 12.dp else 0.dp)
                 ) {
+                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                     Text(stringResource(R.string.menu_add_field))
                 }
             }

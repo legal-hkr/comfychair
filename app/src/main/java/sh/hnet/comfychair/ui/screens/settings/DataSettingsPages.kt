@@ -2,6 +2,7 @@
 
 package sh.hnet.comfychair.ui.screens.settings
 
+import sh.hnet.comfychair.ui.components.settings.SettingsActionButton
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -80,17 +81,12 @@ fun CacheSettingsPage(viewModel: SettingsViewModel, onNavigateBack: () -> Unit) 
 
     SettingsPage(stringResource(R.string.title_settings_cache_page), onNavigateBack) {
         SettingsDescription(stringResource(R.string.desc_settings_cache_page))
-        SettingsGroup {
-            row { shapes ->
-                SettingsActionRow(
-                    shapes = shapes,
-                    icon = Icons.Rounded.DeleteSweep,
-                    title = stringResource(R.string.button_clear_cache),
-                    destructive = true,
-                    onClick = { confirm = true }
-                )
-            }
-        }
+        SettingsActionButton(
+            icon = Icons.Rounded.DeleteSweep,
+            title = stringResource(R.string.button_clear_cache),
+            destructive = true,
+            onClick = { confirm = true }
+        )
     }
 
     if (confirm) {

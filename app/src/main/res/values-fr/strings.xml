@@ -1124,7 +1124,6 @@
     <string name="button_link_delete_field">Lier et supprimer le champ</string>
     <string name="section_custom_fields">Personnalisés</string>
     <string name="menu_add_field">Ajouter un champ</string>
-    <string name="desc_add_field">Choisissez une valeur à attribuer</string>
     <string name="label_pick_add_to">Ajouter à &lt;b>%1$s&lt;/b></string>
     <string name="title_pick_value">Choisissez une valeur</string>
     <string name="hint_pick_value">Les valeurs possibles sont mises en évidence</string>

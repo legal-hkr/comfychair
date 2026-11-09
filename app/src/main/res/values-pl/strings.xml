@@ -1151,7 +1151,6 @@
     <string name="button_link_delete_field">Podłącz i usuń pole</string>
     <string name="section_custom_fields">Własne</string>
     <string name="menu_add_field">Dodaj pole</string>
-    <string name="desc_add_field">Wybierz wartość do przypisania</string>
     <string name="label_pick_add_to">Dodawanie do &lt;b>%1$s&lt;/b></string>
     <string name="title_pick_value">Wybierz wartość</string>
     <string name="hint_pick_value">Dopuszczalne wartości zostały podświetlone</string>

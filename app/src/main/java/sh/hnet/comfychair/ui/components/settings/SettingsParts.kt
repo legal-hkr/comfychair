@@ -2,6 +2,10 @@
 
 package sh.hnet.comfychair.ui.components.settings
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -338,6 +342,36 @@ fun SettingsRadioRow(
             }
         }
     ) {
+        Text(title)
+    }
+}
+
+/**
+ * A page's (or a sheet's) lone action, apart from its lists: a full-width outlined button with its icon, in the error
+ * colour when it removes something (still confirmed by its caller). Android's own settings show a single action so;
+ * a list row is for actions among others (a group of several).
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun SettingsActionButton(
+    icon: ImageVector,
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    destructive: Boolean = false,
+    enabled: Boolean = true
+) {
+    val error = MaterialTheme.colorScheme.error
+    OutlinedButton(
+        onClick = onClick,
+        shapes = ButtonDefaults.shapes(),
+        enabled = enabled,
+        colors = if (destructive) ButtonDefaults.outlinedButtonColors(contentColor = error) else ButtonDefaults.outlinedButtonColors(),
+        border = ButtonDefaults.outlinedButtonBorder(enabled).let { if (destructive && enabled) it.copy(brush = SolidColor(error)) else it },
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
         Text(title)
     }
 }

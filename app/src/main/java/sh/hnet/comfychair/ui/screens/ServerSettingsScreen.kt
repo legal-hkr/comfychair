@@ -2,6 +2,7 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.settings.SettingsActionButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -122,16 +123,11 @@ fun ServerSettingsScreen(
 
         // Ends the session; the login screen then offers the saved servers (also to switch servers). Apart, at the
         // end, as the page's way out; nothing is deleted, so not in the error colour
-        SettingsGroup {
-            row { shapes ->
-                SettingsActionRow(
-                    shapes = shapes,
-                    icon = Icons.AutoMirrored.Rounded.Logout,
-                    title = stringResource(R.string.action_logout),
-                    onClick = onLogout
-                )
-            }
-        }
+        SettingsActionButton(
+            icon = Icons.AutoMirrored.Rounded.Logout,
+            title = stringResource(R.string.action_logout),
+            onClick = onLogout
+        )
     }
 
     if (confirmClearHistory) {

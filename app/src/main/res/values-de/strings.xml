@@ -1095,7 +1095,6 @@
     <string name="button_link_delete_field">Verbinden und Feld löschen</string>
     <string name="section_custom_fields">Eigene</string>
     <string name="menu_add_field">Feld hinzufügen</string>
-    <string name="desc_add_field">Wähle einen Wert zum Zuweisen</string>
     <string name="label_pick_add_to">Zu &lt;b>%1$s&lt;/b> hinzufügen</string>
     <string name="title_pick_value">Wähle einen Wert</string>
     <string name="hint_pick_value">Zulässige Werte sind hervorgehoben</string>

@@ -1070,7 +1070,6 @@
     <string name="button_link_delete_field">连接并删除字段</string>
     <string name="section_custom_fields">自定义</string>
     <string name="menu_add_field">添加字段</string>
-    <string name="desc_add_field">选择要分配的值</string>
     <string name="label_pick_add_to">添加到 &lt;b>%1$s&lt;/b></string>
     <string name="title_pick_value">选择一个值</string>
     <string name="hint_pick_value">可选的值已突出显示</string>

@@ -1127,7 +1127,6 @@
     <string name="button_link_delete_field">Link and delete field</string>
     <string name="section_custom_fields">Custom</string>
     <string name="menu_add_field">Add a field</string>
-    <string name="desc_add_field">Pick a value to assign</string>
     <string name="label_pick_add_to">Add to &lt;b>%1$s&lt;/b></string>
     <string name="title_pick_value">Pick a value</string>
     <string name="hint_pick_value">Allowed values are highlighted</string>

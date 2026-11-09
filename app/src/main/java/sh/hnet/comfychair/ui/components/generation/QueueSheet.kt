@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components.generation
 
+import sh.hnet.comfychair.ui.components.settings.SettingsActionButton
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -52,8 +53,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.settings.SettingsActionRow
-import sh.hnet.comfychair.ui.components.settings.SettingsGroup
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.queue.QueueSnapshot
 import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
@@ -246,17 +245,12 @@ fun QueueSheet(generationViewModel: GenerationViewModel, onDismiss: () -> Unit) 
                 item {
                     Spacer(Modifier.height(16.dp))
                     // Apart, at the end, confirmed: as Delete workflow on a workflow's page
-                    SettingsGroup {
-                        row { shapes ->
-                            SettingsActionRow(
-                                shapes = shapes,
-                                icon = Icons.Rounded.ClearAll,
-                                title = stringResource(R.string.button_clear_queue_confirm),
-                                destructive = true,
-                                onClick = { confirmClear = true }
-                            )
-                        }
-                    }
+                    SettingsActionButton(
+                        icon = Icons.Rounded.ClearAll,
+                        title = stringResource(R.string.button_clear_queue_confirm),
+                        destructive = true,
+                        onClick = { confirmClear = true }
+                    )
                 }
             }
         }

@@ -2,6 +2,7 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.settings.SettingsActionButton
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -835,17 +836,12 @@ fun WorkflowDetailPage(
         // Apart, at the end, confirmed
         if (!builtIn) {
             Spacer(Modifier.height(8.dp))
-            SettingsGroup {
-                row { shapes ->
-                    SettingsActionRow(
-                        shapes = shapes,
-                        icon = Icons.Rounded.Delete,
-                        title = stringResource(R.string.button_delete_workflow),
-                        destructive = true,
-                        onClick = { confirmDelete = true }
-                    )
-                }
-            }
+            SettingsActionButton(
+                icon = Icons.Rounded.Delete,
+                title = stringResource(R.string.button_delete_workflow),
+                destructive = true,
+                onClick = { confirmDelete = true }
+            )
         }
     }
 
