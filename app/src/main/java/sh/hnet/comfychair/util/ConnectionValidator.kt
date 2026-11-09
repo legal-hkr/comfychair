@@ -255,10 +255,10 @@ object ConnectionValidator {
 
     /**
      * Whether a value input of [valueType] takes a link from an output of [outputType]: the same type (INT and FLOAT
-     * don't mix, as in ComfyUI) or a wildcard output. Unlike connection inputs, an unknown output type doesn't count.
+     * don't mix, as in ComfyUI), a wildcard output or a switch's matched type. Unlike connection inputs, an unknown output type doesn't count.
      */
     fun acceptsValueLink(outputType: String?, valueType: String): Boolean =
-        outputType != null && (outputType == "*" || outputType.equals(valueType, ignoreCase = true))
+        outputType != null && (outputType == "*" || outputType.startsWith(MATCH_TYPE_PREFIX) || outputType.equals(valueType, ignoreCase = true))
 
     /**
      * Check if an output type is compatible with an input type.

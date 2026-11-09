@@ -81,6 +81,11 @@ fun NavController.navigateToScreen(route: MainRoute) {
  * opened from it (the Settings pages) and comes back fresh, at its top.
  */
 fun NavController.reopenScreen(route: MainRoute) {
+    // Settings' pages leave first: they may lie on another screen without the list under them (What's new opened
+    // from the update notice)
+    while (route == MainRoute.Settings && currentDestination?.route.let { isSettingsRoute(it) && it != MainRoute.Settings.route }) {
+        if (!popBackStack()) break
+    }
     navigate(route.route) {
         popUpTo(route.route) { inclusive = true }
         launchSingleTop = true

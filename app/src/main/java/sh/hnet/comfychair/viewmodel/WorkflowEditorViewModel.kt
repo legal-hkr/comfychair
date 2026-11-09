@@ -4503,10 +4503,17 @@ class WorkflowEditorViewModel : ViewModel() {
         if (frame.parentGraph.nodes.find { it.id == frame.instanceId }?.inputs?.containsKey(shownKey) == true) {
             changeEnteredInstance { instance -> instance.copy(inputs = instance.inputs - shownKey) }
         }
-        // A value a field filled ({{placeholder}}) goes with the field to the new input: kept as the value it feeds, it
-        // becomes the instance's value of that input, which the field fills from then on (any other value is kept by
-        // the link itself)
-        val filled = (node.inputs[inputSlot.slotName] as? InputValue.Literal)?.value?.takeIf { TemplateKeyRegistry.isAppManagedValue(it) }
+        // A value a built-in field filled ({{placeholder}}) goes with the field to the new input: kept as the value it
+        // feeds, it becomes the instance's value of that input, which the field fills from then on. A custom field's
+        // value leaves its field with the link (it stays at this node), so the input gets the field's default instead
+        // of a placeholder no field fills any more. Any other value is kept by the link itself.
+        val literal = (node.inputs[inputSlot.slotName] as? InputValue.Literal)?.value
+        val custom = customFieldOf(node.id, inputSlot.slotName)?.takeIf { it.placeholder == literal }
+        val filled = when {
+            custom != null -> CustomFields.typedValue(custom.type, custom.default) ?: custom.default
+            TemplateKeyRegistry.isAppManagedValue(literal) -> literal
+            else -> null
+        }
         portsChanged(definitions)
         val index = ports.length() - 1
         link(SlotPosition(SubgraphLevels.INPUTS_ID, name, isOutput = true, outputIndex = index, center = Offset.Zero, slotType = type), inputSlot)
@@ -4625,6 +4632,8 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 }
 
-/** Input types that are values (widgets) in ComfyUI, apart from lists. */
+// A switch's output of matched type (COMFY_MATCHTYPE_V3)
 private const val MATCH_TYPE_PREFIX = "COMFY_MATCHTYPE"
+
+/** Input types that are values (widgets) in ComfyUI, apart from lists. */
 private val VALUE_INPUT_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN")

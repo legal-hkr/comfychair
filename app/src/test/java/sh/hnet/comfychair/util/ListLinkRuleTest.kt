@@ -166,5 +166,8 @@ class ListLinkRuleTest {
         assertTrue(ConnectionValidator.isTypeCompatible("MODEL", "COMFY_MATCHTYPE_V3"))
         assertTrue(ConnectionValidator.isTypeCompatible("COMFY_MATCHTYPE_V3", "MODEL"))
         assertFalse(ConnectionValidator.isTypeCompatible("IMAGE", "MODEL"))
+        // A value of #59 takes it too, as the server does
+        assertTrue(ConnectionValidator.acceptsValueLink("COMFY_MATCHTYPE_V3", "INT"))
+        assertFalse(ConnectionValidator.acceptsValueLink("FLOAT", "INT"))
     }
 }
