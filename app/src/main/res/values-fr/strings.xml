@@ -694,6 +694,7 @@
     <string name="label_editor_state_map_fields">associer les champs</string>
     <string name="label_editor_zoom_in_to_connect">Zoomez pour connecter</string>
     <string name="label_editor_connecting">Connexion %1$s</string>
+    <string name="label_editor_any_type">tout type</string>
     <string name="hint_editor_tap_input">Touchez une entrée en surbrillance</string>
     <string name="hint_editor_tap_output">Touchez une sortie en surbrillance</string>
     <string name="label_editor_linking">Liaison de %1$s</string>

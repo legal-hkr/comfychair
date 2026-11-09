@@ -689,6 +689,7 @@
     <string name="label_editor_state_map_fields">Felder zuordnen</string>
     <string name="label_editor_zoom_in_to_connect">Zum Verbinden heranzoomen</string>
     <string name="label_editor_connecting">Verbinde %1$s</string>
+    <string name="label_editor_any_type">beliebigen Typ</string>
     <string name="hint_editor_tap_input">Tippe auf einen hervorgehobenen Eingang</string>
     <string name="hint_editor_tap_output">Tippe auf einen hervorgehobenen Ausgang</string>
     <string name="label_editor_linking">%1$s verbinden</string>

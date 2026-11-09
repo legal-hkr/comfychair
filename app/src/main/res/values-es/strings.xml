@@ -694,6 +694,7 @@
     <string name="label_editor_state_map_fields">asignar campos</string>
     <string name="label_editor_zoom_in_to_connect">Acerca para conectar</string>
     <string name="label_editor_connecting">Conectando %1$s</string>
+    <string name="label_editor_any_type">cualquier tipo</string>
     <string name="hint_editor_tap_input">Toca una entrada resaltada</string>
     <string name="hint_editor_tap_output">Toca una salida resaltada</string>
     <string name="label_editor_linking">Conectando %1$s</string>

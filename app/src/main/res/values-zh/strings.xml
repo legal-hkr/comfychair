@@ -656,6 +656,7 @@
     <string name="label_editor_state_map_fields">映射字段</string>
     <string name="label_editor_zoom_in_to_connect">放大后才能连接</string>
     <string name="label_editor_connecting">正在连接 %1$s</string>
+    <string name="label_editor_any_type">任意类型</string>
     <string name="hint_editor_tap_input">点按高亮的输入</string>
     <string name="hint_editor_tap_output">点按高亮的输出</string>
     <string name="label_editor_linking">正在连接 %1$s</string>

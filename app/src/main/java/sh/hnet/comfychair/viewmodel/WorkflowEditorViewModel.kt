@@ -1166,7 +1166,7 @@ class WorkflowEditorViewModel : ViewModel() {
         }
         // With subgraphs: found on the nodes that run, shown on the instances (which may get values promoted)
         val stored = JSONObject(serializer.serializeWithWrapper(graph))
-        val flat = populateNodeOutputs(parser.parse(Subgraphs.flatten(stored).toString(), graph.name, graph.description))
+        val flat = populateNodeOutputs(parser.parse(Subgraphs.flatten(stored).toString(), graph.name, graph.description), sockets = false)
         val state = FieldMappingAnalyzer.toExposedView(
             FieldMappingAnalyzer.createFieldMappingState(context, flat, type, ConnectionManager.nodeTypeRegistry),
             stored
@@ -1305,8 +1305,12 @@ class WorkflowEditorViewModel : ViewModel() {
      * Populate node outputs using the node type registry.
      * Adds output types to each node based on its class type.
      */
-    private fun populateNodeOutputs(graph: WorkflowGraph): WorkflowGraph =
-        WorkflowGraphPreparation.populateNodeOutputs(graph, registryFor(graph))
+    /** Outputs from the definitions, and with [sockets] the free sockets a file left out (drawing and editing). */
+    private fun populateNodeOutputs(graph: WorkflowGraph, sockets: Boolean = true): WorkflowGraph =
+        registryFor(graph).let { registry ->
+            WorkflowGraphPreparation.populateNodeOutputs(graph, registry)
+                .let { if (sockets) WorkflowGraphPreparation.addMissingSockets(it, registry) else it }
+        }
 
     /**
      * Set the canvas size for proper centering calculations
@@ -2561,13 +2565,15 @@ class WorkflowEditorViewModel : ViewModel() {
         // Get output type from registry
         val outputType = nodeTypeRegistry.getOutputType(sourceNode.classType, outputSlot.outputIndex)
 
+        // A switch carrying one kind of output stands for it (its matched type resolved)
+        val matched = matchedOutputOf(graph, sourceNode, outputType)
         // Calculate all valid input slots (from a strip's add socket: the nodes inside only)
         val validInputs = ConnectionValidator.calculateValidInputSlots(
             graph = graph,
             sourceNodeId = sourceNode.id,
-            outputType = outputType,
+            outputType = matched?.type ?: outputType,
             nodeTypeRegistry = nodeTypeRegistry,
-            outputOptions = outputOptionsOf(sourceNode, outputSlot.outputIndex),
+            outputOptions = matched?.options ?: outputOptionsOf(sourceNode, outputSlot.outputIndex),
             fromSubgraphInput = SubgraphLevels.isPortNode(sourceNode)
         ).filterNot { slot -> SubgraphLevels.isAddSocket(outputSlot.slotName) && graph.nodes.any { it.id == slot.nodeId && SubgraphLevels.isPortNode(it) } }
 
@@ -2578,7 +2584,8 @@ class WorkflowEditorViewModel : ViewModel() {
             connectionModeState = ConnectionModeState(
                 direction = ConnectionDirection.OUTPUT_TO_INPUT,
                 sourceSlot = resolvedOutputSlot,
-                validTargetSlots = validInputs
+                validTargetSlots = validInputs,
+                shownType = matched?.type
             )
         )
     }
@@ -2978,6 +2985,23 @@ class WorkflowEditorViewModel : ViewModel() {
     /** Cancel the question: the connection still waits. */
     fun dismissMappedLink() {
         _uiState.value = _uiState.value.copy(pendingMappedLink = null)
+    }
+
+    /**
+     * The output a switch's output of matched type stands for: the one kind of output its linked inputs of matched
+     * type get (its type, and its options when it's a list); null when that isn't one kind, or for any other output.
+     * Its targets are then those of that output, as ComfyUI's frontend gives the switch that type.
+     */
+    private fun matchedOutputOf(graph: MutableWorkflowGraph, node: WorkflowNode, outputType: String?): OutputSlot? {
+        if (outputType?.startsWith(MATCH_TYPE_PREFIX) != true) return null
+        val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
+        return node.inputs.entries.mapNotNull { (name, value) ->
+            val link = value as? InputValue.Connection ?: return@mapNotNull null
+            if (definition?.inputs?.find { it.name == name }?.type?.startsWith(MATCH_TYPE_PREFIX) != true) return@mapNotNull null
+            val source = graph.nodes.find { it.id == link.sourceNodeId } ?: return@mapNotNull null
+            val output = source.outputs.getOrNull(link.outputIndex) ?: return@mapNotNull null
+            OutputSlot(output.type, "", outputOptionsOf(source, link.outputIndex))
+        }.distinctBy { it.type to it.options }.singleOrNull()?.takeUnless { it.type == "*" || it.type.startsWith(MATCH_TYPE_PREFIX) }
     }
 
     /** The options output [outputIndex] of [node] carries when it is a list, else null. */
@@ -4602,4 +4626,5 @@ class WorkflowEditorViewModel : ViewModel() {
 }
 
 /** Input types that are values (widgets) in ComfyUI, apart from lists. */
+private const val MATCH_TYPE_PREFIX = "COMFY_MATCHTYPE"
 private val VALUE_INPUT_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN")

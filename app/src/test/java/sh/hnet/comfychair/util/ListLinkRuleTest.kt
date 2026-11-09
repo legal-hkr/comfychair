@@ -159,4 +159,12 @@ class ListLinkRuleTest {
         assertFalse(ConnectionValidator.acceptsListLink("*", null, input("ImageCompare", "mode")))
         assertFalse(ConnectionValidator.takesListLink(input("ImageCompare", "mode")))
     }
+
+    @Test
+    fun `a switch's matched type takes and gives any type`() {
+        assertTrue(ConnectionValidator.isTypeCompatible(LIST_OUTPUT_TYPE, "COMFY_MATCHTYPE_V3"))
+        assertTrue(ConnectionValidator.isTypeCompatible("MODEL", "COMFY_MATCHTYPE_V3"))
+        assertTrue(ConnectionValidator.isTypeCompatible("COMFY_MATCHTYPE_V3", "MODEL"))
+        assertFalse(ConnectionValidator.isTypeCompatible("IMAGE", "MODEL"))
+    }
 }

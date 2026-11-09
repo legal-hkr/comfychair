@@ -378,7 +378,9 @@ data class FieldPick(
 data class ConnectionModeState(
     val direction: ConnectionDirection,
     val sourceSlot: SlotPosition,
-    val validTargetSlots: List<SlotPosition>
+    val validTargetSlots: List<SlotPosition>,
+    /** The type to show for the source when it differs from its own: a switch's matched type resolved */
+    val shownType: String? = null
 )
 
 /**

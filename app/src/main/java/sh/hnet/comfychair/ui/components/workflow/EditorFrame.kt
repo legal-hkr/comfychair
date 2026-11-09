@@ -336,10 +336,10 @@ private fun pillLines(workflowName: String, status: EditorStatus, level: Subgrap
     val name = workflowName.ifEmpty { stringResource(R.string.label_new_workflow) }
     if (status is EditorStatus.Connecting) {
         val title = status.inputName?.let { stringResource(R.string.label_editor_linking, it) }
-            ?: stringResource(R.string.label_editor_connecting, status.slotType)
+            ?: stringResource(R.string.label_editor_connecting, shownSlotType(status.slotType))
         val hint = when {
             status.zoomInToConnect -> stringResource(R.string.label_editor_zoom_in_to_connect)
-            status.noTargets -> stringResource(R.string.hint_editor_no_target, status.slotType)
+            status.noTargets -> stringResource(R.string.hint_editor_no_target, shownSlotType(status.slotType))
             status.toAddSocket && status.fromOutput -> stringResource(R.string.sg_connect_hint_outputs)
             status.toAddSocket -> stringResource(R.string.sg_connect_hint_inputs)
             // An output a value can take: values are targets too
@@ -565,3 +565,8 @@ private fun EditMoreMenu(groups: List<List<MenuAction>>) {
         }
     }
 }
+
+/** A socket type as the status shows it: any type for a wildcard or a switch's unresolved matched type. */
+@Composable
+private fun shownSlotType(type: String): String =
+    if (type == "*" || type.startsWith("COMFY_MATCHTYPE")) stringResource(R.string.label_editor_any_type) else type

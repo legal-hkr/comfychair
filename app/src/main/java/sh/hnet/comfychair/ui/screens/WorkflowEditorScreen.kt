@@ -324,7 +324,7 @@ fun WorkflowEditorScreen(
     val detailLevel = rememberGraphDetailLevel(uiState.scale)
     val status = when {
         connection != null -> EditorStatus.Connecting(
-            connection.sourceSlot.slotType ?: "",
+            connection.shownType ?: connection.sourceSlot.slotType ?: "",
             fromOutput = connection.direction == ConnectionDirection.OUTPUT_TO_INPUT,
             inputName = connection.sourceSlot.slotName.takeIf { connection.direction == ConnectionDirection.INPUT_TO_OUTPUT },
             noTargets = connection.validTargetSlots.isEmpty(),

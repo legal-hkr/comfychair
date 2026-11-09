@@ -793,6 +793,7 @@
     <string name="label_editor_state_map_fields">map fields</string>
     <string name="label_editor_zoom_in_to_connect">Zoom in to connect</string>
     <string name="label_editor_connecting">Connecting %1$s</string>
+    <string name="label_editor_any_type">any type</string>
     <string name="hint_editor_tap_input">Tap a highlighted input</string>
     <string name="hint_editor_tap_output">Tap a highlighted output</string>
     <string name="label_editor_linking">Linking %1$s</string>

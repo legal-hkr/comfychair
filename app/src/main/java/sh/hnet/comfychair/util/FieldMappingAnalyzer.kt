@@ -172,7 +172,8 @@ object FieldMappingAnalyzer {
 
         for (node in graph.nodes) {
             node.inputs.forEach { (inputName, inputValue) ->
-                if (TemplateKeyRegistry.doesInputKeyMatchField(fieldKey, inputName)) {
+                // A free socket holds no value: no field's
+                if (inputValue !is InputValue.UnconnectedSlot && TemplateKeyRegistry.doesInputKeyMatchField(fieldKey, inputName)) {
                     // A value linked from another node isn't the field's: mapping it would replace the link (e.g. a
                     // width from a resolution node). A primitive node holding it is offered instead.
                     val (target, targetKey) = when (inputValue) {

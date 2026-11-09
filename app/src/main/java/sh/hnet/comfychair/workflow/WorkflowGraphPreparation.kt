@@ -1,5 +1,7 @@
 package sh.hnet.comfychair.workflow
 
+import sh.hnet.comfychair.util.ConnectionValidator
+
 /**
  * Steps that turn a parsed workflow graph into what the graph canvas draws, shared by the workflow editor and the
  * graph preview on a workflow's detail page, so both look the same. Without node definitions from the server (the
@@ -53,6 +55,27 @@ object WorkflowGraphPreparation {
         })
     }
 
+    /**
+     * The sockets of each node's definition the node doesn't list yet, as free sockets: a workflow saved in ComfyUI's
+     * API format lists only the inputs it fills (a switch without its two inputs couldn't be linked). Only sockets –
+     * values a file leaves out stay out, as adding them would change what runs – and not the growing groups of slots,
+     * which have their own slots by name. Free sockets aren't saved, so nothing changes in the workflow. For drawing
+     * and editing only, not for the field analysis.
+     */
+    fun addMissingSockets(graph: WorkflowGraph, registry: NodeTypeRegistry): WorkflowGraph =
+        graph.copy(nodes = graph.nodes.map { node ->
+            val definition = registry.getNodeDefinition(node.classType) ?: return@map node
+            val missing = definition.inputs.filter { input ->
+                input.name !in node.inputs && !input.socketless && input.type !in GROWING_TYPES &&
+                    (ConnectionValidator.isConnectionType(input.type) || input.forceInput)
+            }
+            if (missing.isEmpty()) node
+            else node.copy(inputs = sortInputsForLayout(node.inputs + missing.associate { it.name to InputValue.UnconnectedSlot(it.type) }))
+        })
+
+    // Groups of slots that grow as they're linked ("name.slot"), drawn by their slots
+    private val GROWING_TYPES = setOf("COMFY_AUTOGROW_V3", "COMFY_DYNAMICGROUP_V3")
+
     /** Give each connection the type of the output it leaves, for its colour. */
     fun resolveEdgeTypes(graph: WorkflowGraph, registry: NodeTypeRegistry): WorkflowGraph {
         if (!registry.isPopulated()) return graph
@@ -95,7 +118,7 @@ object WorkflowGraphPreparation {
     fun prepare(jsonContent: String, registry: NodeTypeRegistry, targetAspect: Float? = null): WorkflowGraph {
         var graph = WorkflowParser(logDetails = false).parse(jsonContent, "", "")
         val types = registryFor(graph, registry)
-        graph = populateNodeOutputs(graph, types)
+        graph = addMissingSockets(populateNodeOutputs(graph, types), types)
         graph = WorkflowLayoutEngine(targetAspect).layoutGraph(graph)
         return resolveEdgeTypes(graph, types)
     }

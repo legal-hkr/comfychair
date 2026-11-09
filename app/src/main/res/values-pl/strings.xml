@@ -713,6 +713,7 @@
     <string name="label_editor_state_map_fields">przypisywanie pól</string>
     <string name="label_editor_zoom_in_to_connect">Przybliż, żeby łączyć</string>
     <string name="label_editor_connecting">Łączenie: %1$s</string>
+    <string name="label_editor_any_type">dowolny typ</string>
     <string name="hint_editor_tap_input">Dotknij podświetlonego wejścia</string>
     <string name="hint_editor_tap_output">Dotknij podświetlonego wyjścia</string>
     <string name="label_editor_linking">Podłączanie %1$s</string>

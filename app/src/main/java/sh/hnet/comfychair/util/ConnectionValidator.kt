@@ -264,7 +264,7 @@ object ConnectionValidator {
      * Check if an output type is compatible with an input type.
      *
      * Compatibility rules:
-     * - "*" (wildcard) matches anything
+     * - "*" (wildcard), and a switch's matched type, match anything
      * - Exact match (case-insensitive)
      * - null types are considered compatible (for flexibility)
      *
@@ -277,6 +277,9 @@ object ConnectionValidator {
             inputType == null ||
             inputType == "*" ||
             outputType == "*" ||
+            // A switch's matched type takes what reaches it, as a wildcard (its template allows any type)
+            inputType.startsWith(MATCH_TYPE_PREFIX) ||
+            outputType.startsWith(MATCH_TYPE_PREFIX) ||
             inputType.equals(outputType, ignoreCase = true)
     }
 }
