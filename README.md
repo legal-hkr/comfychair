@@ -25,7 +25,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ### General
 
-- **Material 3 Expressive design**: Image, Video, Gallery and Settings tabs, each generation screen keeping its own state; Back retraces every step with the predictive back animation
+- **Material 3 Expressive design**: Image, Video, Gallery and Settings tabs, each generation screen keeping its own state; Back retraces every step with the predictive back animation; tapping the selected tab again shows it as when first opened (Gallery and Settings back at their top, Image and Video on their Text source)
 - **First start**: A short welcome offers to add a server or restore a backup; restored servers that need a password or token say so, and Connect opens their form to save and connect
 - **Multi-server support**: Save and manage multiple ComfyUI server connections with per-server settings and optional auto-login
 - **Server connection**: Connect to remote or local ComfyUI servers over HTTPS or HTTP, with HTTPS tried first
@@ -100,11 +100,13 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Delete, duplicate, bypass and rename nodes; clean up disconnected nodes
   - Tap any socket for its menu: Connect (compatible sockets are ringed while a connection waits), Add a node (the node browser filtered by compatible types) or Disconnect
   - Values (numbers, text, true/false) take links of their type, as in ComfyUI, and become values again when disconnected
+  - Lists (sampler, scheduler, model names and the like) take links too, as ComfyUI's server accepts them: another node's list with the same options, any list for lists declared as COMBO, a switch or a wildcard output; text and numbers can't feed a list
+  - A switch (If/Else Switch) takes any type and passes on the type that reaches it; nodes from API-format files show the sockets the file leaves out
   - With TalkBack, a node's sockets and a pending connection's targets are available as actions
   - Organize nodes into groups and add notes with Markdown support; groups are laid out apart like nodes
 - **Subgraphs**: Kept as in ComfyUI, one definition shared by all its copies
   - A copy is a frame with an Open button; inside, the subgraph's Inputs and Outputs strips, and Back goes up a level
-  - Make a subgraph of a selection, unpack one, rename it or a single copy, and add, rename or remove its inputs and outputs
+  - Make a subgraph of a selection, unpack one, rename it or a single copy, and add, rename or remove its inputs and outputs; a value or list linked inside to the Inputs strip becomes an input whose value the copy shows
   - Show, hide and order the values a copy shows, as ComfyUI's promoted values
 - **Field mapping**: When importing, the app's fields are assigned one at a time on a card, with a list of all fields; several fields can come from one node; no field is required except the source image for image workflows, and workflows without a prompt (e.g. upscalers) are supported
 - **Custom fields**: Any node value, inside subgraphs too, can become a named field of its own: shown in a Custom section of the options sheet with the control of its type and the node's range, checked before Generate and remembered per workflow; one field can fill several values. Built-in fields can be renamed for a workflow
