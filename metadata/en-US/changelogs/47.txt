@@ -1,0 +1,13 @@
+v0.9.6
+
+New:
+- Lists (sampler, scheduler, models) take links as in ComfyUI (#59)
+- Lists linked inside a subgraph become its inputs
+- Tapping the selected tab shows it as when first opened
+- Lone actions (Log out, Delete workflow…) as buttons
+
+Bug fixes:
+- Switches take any type and show what they pass on
+- API-format files show all sockets of their nodes
+- List options that are numbers are kept
+- A disconnected value goes back to its place
