@@ -176,7 +176,9 @@ object FieldMappingAnalyzer {
                     // A value linked from another node isn't the field's: mapping it would replace the link (e.g. a
                     // width from a resolution node). A primitive node holding it is offered instead.
                     val (target, targetKey) = when (inputValue) {
-                        is InputValue.Connection -> primitiveSource(nodesById[inputValue.sourceNodeId]) ?: return@forEach
+                        is InputValue.Connection -> primitiveSource(nodesById[inputValue.sourceNodeId])
+                            ?: listSource(nodesById[inputValue.sourceNodeId], inputValue.outputIndex, nodeTypeRegistry)
+                            ?: return@forEach
                         else -> node to inputName
                     }
                     val currentValue = (target.inputs[targetKey] as? InputValue.Literal)?.value
@@ -447,6 +449,19 @@ object FieldMappingAnalyzer {
         if (node == null || !node.classType.startsWith("Primitive")) return null
         if (node.inputs.values.any { it !is InputValue.Literal }) return null
         return if (node.inputs["value"] is InputValue.Literal) node to "value" else null
+    }
+
+    /**
+     * A node passing a list on as the source of a linked list (KSampler Config's SAMPLER, an output whose type is a list
+     * of options): its own list with the very same options, unlinked, whose value it sends; null when it has none, or
+     * several (which one it sends can't be told).
+     */
+    private fun listSource(node: WorkflowNode?, outputIndex: Int, nodeTypeRegistry: NodeTypeRegistry): Pair<WorkflowNode, String>? {
+        if (node == null) return null
+        val options = nodeTypeRegistry.getOutputOptions(node.classType, outputIndex) ?: return null
+        val own = nodeTypeRegistry.getNodeDefinition(node.classType)?.inputs.orEmpty()
+            .filter { it.options == options && node.inputs[it.name] is InputValue.Literal }
+        return own.singleOrNull()?.let { node to it.name }
     }
 
     private fun autoSelectIndex(fieldKey: String, candidates: List<FieldCandidate>): Int {

@@ -2714,7 +2714,9 @@ class WorkflowEditorViewModel : ViewModel() {
             ConnectionDirection.INPUT_TO_OUTPUT -> targetSlot to connection.sourceSlot
         }
         val fieldKey = mappedFieldOf(inputSlot)
-        if (fieldKey == null) {
+        // A new input of the subgraph takes the field along (addSubgraphInput): nothing to ask
+        val toNewInput = outputSlot.nodeId == SubgraphLevels.INPUTS_ID && SubgraphLevels.isAddSocket(outputSlot.slotName)
+        if (fieldKey == null || toNewInput) {
             connectToTarget(targetSlot)
             return
         }
@@ -4477,9 +4479,14 @@ class WorkflowEditorViewModel : ViewModel() {
         if (frame.parentGraph.nodes.find { it.id == frame.instanceId }?.inputs?.containsKey(shownKey) == true) {
             changeEnteredInstance { instance -> instance.copy(inputs = instance.inputs - shownKey) }
         }
+        // A value a field filled ({{placeholder}}) goes with the field to the new input: kept as the value it feeds, it
+        // becomes the instance's value of that input, which the field fills from then on (any other value is kept by
+        // the link itself)
+        val filled = (node.inputs[inputSlot.slotName] as? InputValue.Literal)?.value?.takeIf { TemplateKeyRegistry.isAppManagedValue(it) }
         portsChanged(definitions)
         val index = ports.length() - 1
         link(SlotPosition(SubgraphLevels.INPUTS_ID, name, isOutput = true, outputIndex = index, center = Offset.Zero, slotType = type), inputSlot)
+        filled?.let { keptValues[inputSlot.nodeId to inputSlot.slotName] = it }
     }
 
     /** A new output of the shown subgraph, fed by [outputSlot] inside (the add socket on the Outputs strip). */

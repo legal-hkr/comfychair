@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.workflow
 
+import sh.hnet.comfychair.util.ConnectionValidator
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
@@ -240,7 +241,8 @@ class ComfyUiExporter(
                         listed.add(it)
                     }
                     input.savesValue || hasValue(inputs, name) -> if (name in linked) {
-                        result.add(Entry(name, input.type, widget = true))
+                        // A list is COMBO to the frontend ("ENUM" is the app's own name)
+                        result.add(Entry(name, if (ConnectionValidator.isList(input)) LIST_OUTPUT_TYPE else input.type, widget = true))
                         listed.add(name)
                     }
                     else -> {

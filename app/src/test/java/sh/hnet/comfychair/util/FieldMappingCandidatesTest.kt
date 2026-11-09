@@ -45,4 +45,32 @@ class FieldMappingCandidatesTest {
         val upscale = node("9", "ImageScale", "width" to InputValue.Connection("7", 0))
         assertEquals(listOf("7" to "value"), candidates("width", size, latent, upscale))
     }
+
+    @Test
+    fun listPassedOnIsOfferedAtItsSource() {
+        val registry = NodeTypeRegistry().apply {
+            parseObjectInfo(
+                org.json.JSONObject(
+                    """
+                    {
+                      "KSampler": {"input": {"required": {"sampler_name": [["euler", "heun"], {}], "scheduler": [["simple", "karras"], {}]}},
+                        "output": ["LATENT"], "output_name": ["LATENT"], "category": "sampling"},
+                      "KSampler Config (rgthree)": {"input": {"required": {"sampler_name": [["euler", "heun"], {}], "scheduler": [["simple", "karras"], {}]}},
+                        "output": [["euler", "heun"], ["simple", "karras"]], "output_name": ["SAMPLER", "SCHEDULER"], "category": "rgthree"}
+                    }
+                    """.trimIndent()
+                )
+            )
+        }
+        val config = node("14", "KSampler Config (rgthree)", "sampler_name" to InputValue.Literal("heun"), "scheduler" to InputValue.Literal("simple"))
+        val sampler = node("7", "KSampler", "sampler_name" to InputValue.Connection("14", 0), "scheduler" to InputValue.Literal("karras"))
+        val found = FieldMappingAnalyzer.findCandidatesForField(
+            "sampler_name",
+            WorkflowGraph(name = "", description = "", nodes = listOf(sampler, config), edges = emptyList(), templateVariables = emptySet()),
+            emptyMap(),
+            registry
+        ).map { it.nodeId to it.inputKey }
+        // The list the link carries comes first, once
+        assertEquals(listOf("14" to "sampler_name"), found)
+    }
 }
