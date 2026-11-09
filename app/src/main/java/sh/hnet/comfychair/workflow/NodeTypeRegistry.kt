@@ -41,7 +41,13 @@ data class InputDefinition(
     /** Which upload button: the flag's name without "_upload" ("image", "video", "audio", "file"…) */
     val uploadKind: String? = null,
     /** The widget the frontend draws for an input of several types ("FLOAT,INT" drawn as FLOAT) */
-    val widgetType: String? = null
+    val widgetType: String? = null,
+    /**
+     * A list declared the newer way, as COMBO with its options in the config, rather than by its options as its type:
+     * ComfyUI's server takes a link into it from any list, while a list declared by its options takes only the very
+     * same options ([sh.hnet.comfychair.util.ConnectionValidator.acceptsListLink])
+     */
+    val comboDeclared: Boolean = false
 )
 
 /**
@@ -55,6 +61,9 @@ val InputDefinition.isWidget: Boolean
 private val WIDGET_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM", "COMBO", DYNAMIC_COMBO_TYPE)
 
 const val DYNAMIC_COMBO_TYPE = "COMFY_DYNAMICCOMBO_V3"
+
+/** ComfyUI's list type, as its frontend names a list on an output or a link */
+const val LIST_OUTPUT_TYPE = "COMBO"
 
 /**
  * Get the effective default value for this input definition.
@@ -81,7 +90,12 @@ fun InputDefinition.getEffectiveDefault(): Any {
 @Immutable
 data class OutputSlot(
     val type: String,  // e.g., "CONDITIONING" - used for slot colors
-    val name: String   // e.g., "positive" - displayed in UI
+    val name: String,  // e.g., "positive" - displayed in UI
+    /**
+     * An output whose type in /object_info is a list of options (a node passing a sampler's or scheduler's choice on):
+     * its type is then COMBO, as ComfyUI's frontend shows it, and these are the options it carries
+     */
+    val options: List<String>? = null
 )
 
 /**
@@ -180,6 +194,19 @@ class NodeTypeRegistry {
         DebugLogger.i(TAG, "NodeTypeRegistry populated: ${newNodeDefinitions.size} node types parsed")
     }
 
+    /** [parseObjectInfo] for /object_info already read as a whole (tests, research). */
+    internal fun parseObjectInfo(objectInfo: JSONObject) {
+        val newNodeTypes = mutableMapOf<String, NodeTypeInfo>()
+        val newNodeDefinitions = mutableMapOf<String, NodeTypeDefinition>()
+        val optionListPool = HashMap<List<String>, List<String>>()
+        for (classType in objectInfo.keys()) {
+            parseNode(classType, objectInfo.optJSONObject(classType) ?: continue, newNodeTypes, newNodeDefinitions, optionListPool)
+        }
+        nodeTypes = newNodeTypes
+        nodeDefinitions = newNodeDefinitions
+        version++
+    }
+
     /**
      * Read the next value from [reader] into the same representation org.json would produce.
      */
@@ -243,10 +270,15 @@ class NodeTypeRegistry {
         val outputSlots = mutableListOf<OutputSlot>()
         if (outputArray != null) {
             for (i in 0 until outputArray.length()) {
-                val type = outputArray.optString(i, "UNKNOWN")
+                // A list of options as the type: a list (COMBO) carrying these options
+                val options = (outputArray.opt(i) as? JSONArray)?.let { array ->
+                    val list = (0 until array.length()).mapNotNull { array.opt(it) as? String }
+                    optionListPool.getOrPut(list) { list }
+                }
+                val type = if (options != null) LIST_OUTPUT_TYPE else outputArray.optString(i, "UNKNOWN")
                 val name = outputNameArray?.optString(i)?.takeIf { it.isNotEmpty() } ?: type
                 outputTypes.add(type)
-                outputSlots.add(OutputSlot(type = type, name = name))
+                outputSlots.add(OutputSlot(type = type, name = name, options = options))
             }
         }
 
@@ -363,6 +395,7 @@ class NodeTypeRegistry {
                                     forceInput = forceInput,
                                     tooltip = tooltip,
                                     multiselect = multiselect,
+                                    comboDeclared = true,
                                     socketless = optionsObj.optBoolean("socketless", false),
                                     controlAfterGenerate = optionsObj.hasControlAfterGenerate(),
                                     upload = optionsObj.hasUploadFlag(),
@@ -461,7 +494,9 @@ class NodeTypeRegistry {
             controlAfterGenerate = options?.hasControlAfterGenerate() ?: false,
             upload = options?.hasUploadFlag() ?: false,
             uploadKind = options?.uploadKind(),
-            widgetType = options?.optString("widgetType", "")?.takeIf { it.isNotEmpty() }
+            widgetType = options?.optString("widgetType", "")?.takeIf { it.isNotEmpty() },
+            // A list declared as COMBO whose options come from elsewhere (a remote route)
+            comboDeclared = type == LIST_OUTPUT_TYPE
         )
     }
 
@@ -487,6 +522,10 @@ class NodeTypeRegistry {
         val info = nodeTypes[classType] ?: return null
         return info.outputTypes.getOrNull(outputIndex)
     }
+
+    /** The options an output carries when it is a list ([OutputSlot.options]), else null. */
+    fun getOutputOptions(classType: String, outputIndex: Int): List<String>? =
+        (localDefinitions[classType] ?: nodeDefinitions[classType])?.outputs?.getOrNull(outputIndex)?.options
 
     /**
      * Get the input type for a specific input on a node.

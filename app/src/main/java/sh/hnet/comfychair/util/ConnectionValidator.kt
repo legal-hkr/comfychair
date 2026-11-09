@@ -1,5 +1,7 @@
 package sh.hnet.comfychair.util
 
+import sh.hnet.comfychair.workflow.InputDefinition
+import sh.hnet.comfychair.workflow.LIST_OUTPUT_TYPE
 import androidx.compose.ui.geometry.Offset
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.MutableWorkflowGraph
@@ -134,6 +136,37 @@ object ConnectionValidator {
         }
 
         return validSlots
+    }
+
+    // A switch's output of matched type (COMFY_MATCHTYPE_V3): whatever reaches it, the server takes as any type
+    private const val MATCH_TYPE_PREFIX = "COMFY_MATCHTYPE"
+
+    /** Whether [input] is a list (ComfyUI's combo: a dropdown of options). */
+    fun isList(input: InputDefinition): Boolean = input.type == "ENUM" || input.type == LIST_OUTPUT_TYPE
+
+    /** Whether [input] is a list that can take a link: all of them but those without a socket (socketless). */
+    fun takesListLink(input: InputDefinition): Boolean = isList(input) && !input.socketless
+
+    /**
+     * Whether [input], a list, takes a link from an output of [outputType] carrying [outputOptions] (the options of an
+     * output that is a list), as ComfyUI's server validates such a link (probed on a live server, see the project's
+     * COMBO research): a wildcard output or a switch's matched type always; a list declared as COMBO
+     * ([InputDefinition.comboDeclared]) any list; a list declared by its options only an output with the very same
+     * options, in the same order. Text, numbers and other types never: ComfyUI wants a converting node for those. A
+     * link from a subgraph's input ([fromSubgraphInput]) is resolved before the server sees it, so it fits any list.
+     */
+    fun acceptsListLink(
+        outputType: String?,
+        outputOptions: List<String>?,
+        input: InputDefinition,
+        fromSubgraphInput: Boolean = false
+    ): Boolean {
+        if (!takesListLink(input)) return false
+        val type = outputType?.uppercase() ?: return false
+        if (type == "*" || type.startsWith(MATCH_TYPE_PREFIX)) return true
+        if (type != LIST_OUTPUT_TYPE) return false
+        if (fromSubgraphInput || input.comboDeclared) return true
+        return outputOptions != null && outputOptions == input.options
     }
 
     /** Value types (ComfyUI widgets) that can take a link of their own type instead of a typed value. */
