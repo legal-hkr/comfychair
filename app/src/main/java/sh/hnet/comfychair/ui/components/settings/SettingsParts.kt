@@ -2,6 +2,11 @@
 
 package sh.hnet.comfychair.ui.components.settings
 
+import sh.hnet.comfychair.ui.navigation.expandAnimated
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material3.ButtonDefaults
@@ -69,9 +74,20 @@ fun SettingsPage(
     title: String,
     onNavigateBack: (() -> Unit)?,
     subtitle: String? = null,
+    /** Emits when the page should go back to its top, as when first opened (its tab tapped again) */
+    scrollToTop: Flow<Unit>? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollState = rememberScrollState()
+    LaunchedEffect(scrollToTop) {
+        scrollToTop?.collect {
+            coroutineScope {
+                launch { scrollState.animateScrollTo(0) }
+                launch { scrollBehavior.expandAnimated() }
+            }
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         val titleText: @Composable () -> Unit = { Text(title) }
         val subtitleText: (@Composable () -> Unit)? = subtitle?.let { { Text(it) } }
@@ -98,7 +114,7 @@ fun SettingsPage(
                 modifier = Modifier
                     .fillMaxSize()
                     .nestedScroll(scrollBehavior.nestedScrollConnection)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),

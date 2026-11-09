@@ -1,5 +1,10 @@
 package sh.hnet.comfychair.ui.navigation
 
+import androidx.compose.animation.core.animate
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.ExperimentalMaterial3Api
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.Flow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation.NavController
 import sh.hnet.comfychair.R
@@ -80,6 +85,19 @@ fun NavController.reopenScreen(route: MainRoute) {
         popUpTo(route.route) { inclusive = true }
         launchSingleTop = true
     }
+}
+
+/**
+ * Tabs tapped again while their own screen (not one of its pages) is shown: the screen scrolls back to its top, with
+ * its top app bar expanded, as when first opened. Provided by the main navigation host.
+ */
+val LocalTabReselects = staticCompositionLocalOf<Flow<MainRoute>> { emptyFlow() }
+
+/** A collapsing top app bar opened out again, as a page shows it at its top (a scroll by code doesn't reach it). */
+@OptIn(ExperimentalMaterial3Api::class)
+suspend fun TopAppBarScrollBehavior.expandAnimated() {
+    animate(state.heightOffset, 0f) { value, _ -> state.heightOffset = value }
+    state.contentOffset = 0f
 }
 
 /** Shows another generation screen; provided by the main navigation host for the source switch. */

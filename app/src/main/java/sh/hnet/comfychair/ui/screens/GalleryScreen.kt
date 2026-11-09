@@ -2,6 +2,11 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
+import sh.hnet.comfychair.navigation.MainRoute
+import sh.hnet.comfychair.ui.navigation.expandAnimated
+import sh.hnet.comfychair.ui.navigation.LocalTabReselects
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -212,6 +217,17 @@ fun GalleryScreen(
     }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var confirmDelete by remember { mutableStateOf(false) }
+    // Gallery tapped again: back to the top of the grid, as when first opened
+    val reselects = LocalTabReselects.current
+    LaunchedEffect(reselects) {
+        reselects.collect { route ->
+            if (route != MainRoute.Gallery) return@collect
+            coroutineScope {
+                launch { gridState.animateScrollToItem(0) }
+                launch { scrollBehavior.expandAnimated() }
+            }
+        }
+    }
 
     // A selection doesn't outlive the tab: the navigation bar is hidden while selecting
     DisposableEffect(Unit) { onDispose { galleryViewModel.clearSelection() } }

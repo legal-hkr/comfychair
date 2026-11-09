@@ -2,6 +2,10 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.filter
+import sh.hnet.comfychair.navigation.MainRoute
+import sh.hnet.comfychair.ui.navigation.LocalTabReselects
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -51,10 +55,14 @@ fun SettingsRootScreen(viewModel: SettingsViewModel, onOpenPage: (SettingsRoute)
     val routerId by viewModel.edgeRouterId.collectAsState()
     val languageTag = remember { currentLanguageTag(context) }
 
+    // Settings tapped again on this list: back to its top
+    val reselects = LocalTabReselects.current
+    val scrollToTop = remember(reselects) { reselects.filter { it == MainRoute.Settings }.map { } }
     SettingsPage(
         title = stringResource(R.string.action_settings),
         onNavigateBack = null,
-        subtitle = (serverName ?: address)?.let { stringResource(R.string.label_settings_connected_to, it) }
+        subtitle = (serverName ?: address)?.let { stringResource(R.string.label_settings_connected_to, it) },
+        scrollToTop = scrollToTop
     ) {
         SettingsGroup(stringResource(R.string.title_settings_group_server)) {
             row { shapes ->

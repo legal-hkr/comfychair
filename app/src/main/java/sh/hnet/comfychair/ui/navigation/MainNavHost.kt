@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.navigation
 
+import kotlinx.coroutines.flow.MutableSharedFlow
 import sh.hnet.comfychair.ui.components.generation.SourceSwitchOverlay
 import sh.hnet.comfychair.ui.components.generation.SourceSwitchAnchors
 import sh.hnet.comfychair.ui.components.generation.LocalSourceSwitchAnchors
@@ -231,6 +232,7 @@ fun MainNavHost(
         }
     }
     val transitions = rememberScreenTransitions()
+    val tabReselects = remember { MutableSharedFlow<MainRoute>(extraBufferCapacity = 1) }
     // A screen shown anew has started its transition by the time its entry is current
     LaunchedEffect(currentEntry?.id) { transitions.reopening = false }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -298,8 +300,13 @@ fun MainNavHost(
                                 ownJobs = ownJobsPerTab,
                                 unseenResults = unseenResults.toSet(),
                                 onReopen = { route ->
-                                    transitions.reopening = true
-                                    navController.reopenScreen(route)
+                                    if (currentEntry?.destination?.route == route.route) {
+                                        // On the screen itself: it scrolls back to its top
+                                        tabReselects.tryEmit(route)
+                                    } else {
+                                        transitions.reopening = true
+                                        navController.reopenScreen(route)
+                                    }
                                 }
                             )
                         }
@@ -315,6 +322,7 @@ fun MainNavHost(
                 ) { paddingValues ->
                     // The source switch shows the other screens of its tab
                     CompositionLocalProvider(
+                        LocalTabReselects provides tabReselects,
                         LocalScreenNavigator provides { route: MainRoute -> navController.navigateToScreen(route) },
                         LocalSourceSwitchAnchors provides sourceSwitchAnchors
                     ) {
