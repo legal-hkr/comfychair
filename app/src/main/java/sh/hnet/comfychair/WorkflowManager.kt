@@ -719,6 +719,27 @@ object WorkflowManager {
     }
 
     /**
+     * A mapped workflow's defaults: the values the mapping took from the nodes, over the file's own defaults. A
+     * workflow in ComfyChair's format (an export, or a user workflow saved again after editing) already holds
+     * placeholders, so its values are only in its defaults; without them it fell back to the app's (CFG 7, 20 steps).
+     */
+    internal fun mappedDefaults(fileDefaults: JSONObject?, extracted: Map<String, Any>): WorkflowDefaults {
+        val own = WorkflowDefaults.fromJson(fileDefaults)
+        return own.copy(
+            width = (extracted["width"] as? Number)?.toInt() ?: own.width,
+            height = (extracted["height"] as? Number)?.toInt() ?: own.height,
+            steps = (extracted["steps"] as? Number)?.toInt() ?: own.steps,
+            cfg = (extracted["cfg"] as? Number)?.toFloat() ?: own.cfg,
+            samplerName = extracted["sampler_name"] as? String ?: own.samplerName,
+            scheduler = extracted["scheduler"] as? String ?: own.scheduler,
+            negativePrompt = extracted["negative_text"] as? String ?: own.negativePrompt,
+            megapixels = (extracted["megapixels"] as? Number)?.toFloat() ?: own.megapixels,
+            length = (extracted["length"] as? Number)?.toInt() ?: own.length,
+            frameRate = (extracted["frame_rate"] as? Number)?.toInt() ?: own.frameRate
+        )
+    }
+
+    /**
      * Add a user workflow with explicit type and field mappings
      * This is used for the new upload flow where the user selects the type
      */
@@ -829,18 +850,7 @@ object WorkflowManager {
 
         // Create defaults object from extracted values
         // Field visibility is determined by placeholder detection, not by has* flags
-        val defaults = WorkflowDefaults(
-            width = (extractedDefaults["width"] as? Number)?.toInt(),
-            height = (extractedDefaults["height"] as? Number)?.toInt(),
-            steps = (extractedDefaults["steps"] as? Number)?.toInt(),
-            cfg = (extractedDefaults["cfg"] as? Number)?.toFloat(),
-            samplerName = extractedDefaults["sampler_name"] as? String,
-            scheduler = extractedDefaults["scheduler"] as? String,
-            negativePrompt = extractedDefaults["negative_text"] as? String,
-            megapixels = (extractedDefaults["megapixels"] as? Number)?.toFloat(),
-            length = (extractedDefaults["length"] as? Number)?.toInt(),
-            frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt()
-        )
+        val defaults = mappedDefaults(if (isWrapped) json.optJSONObject("defaults") else null, extractedDefaults)
 
         // Create wrapped JSON with metadata and defaults
         val finalJson = JSONObject().apply {
@@ -1034,18 +1044,7 @@ object WorkflowManager {
 
         // Create defaults object from extracted values
         // Field visibility is determined by placeholder detection, not by has* flags
-        val defaults = WorkflowDefaults(
-            width = (extractedDefaults["width"] as? Number)?.toInt(),
-            height = (extractedDefaults["height"] as? Number)?.toInt(),
-            steps = (extractedDefaults["steps"] as? Number)?.toInt(),
-            cfg = (extractedDefaults["cfg"] as? Number)?.toFloat(),
-            samplerName = extractedDefaults["sampler_name"] as? String,
-            scheduler = extractedDefaults["scheduler"] as? String,
-            negativePrompt = extractedDefaults["negative_text"] as? String,
-            megapixels = (extractedDefaults["megapixels"] as? Number)?.toFloat(),
-            length = (extractedDefaults["length"] as? Number)?.toInt(),
-            frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt()
-        )
+        val defaults = mappedDefaults(if (isWrapped) json.optJSONObject("defaults") else null, extractedDefaults)
 
         // Create wrapped JSON with original metadata preserved
         val finalJson = JSONObject().apply {
