@@ -76,10 +76,6 @@ object PngMetadataExtractor {
     }
 
     /**
-     * Parse a tEXt chunk.
-     * Format: keyword (1-79 bytes) + null byte + text
-     */
-    /**
      * The image's size from its header (IHDR, always the first chunk), or null when the bytes aren't a PNG. The file's
      * own size, which an upscaler after decoding makes larger than the size the workflow generated at.
      */
@@ -94,6 +90,10 @@ object PngMetadataExtractor {
     private fun hasSignature(bytes: ByteArray): Boolean =
         bytes.size >= PNG_SIGNATURE.size && PNG_SIGNATURE.indices.all { bytes[it] == PNG_SIGNATURE[it] }
 
+    /**
+     * Parse a tEXt chunk.
+     * Format: keyword (1-79 bytes) + null byte + text
+     */
     private fun parseTextChunk(bytes: ByteArray, start: Int, length: Int): Pair<String, String>? {
         if (length < 2) return null
 

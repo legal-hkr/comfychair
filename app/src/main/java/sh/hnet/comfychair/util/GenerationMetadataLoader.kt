@@ -39,7 +39,10 @@ object GenerationMetadataLoader {
     suspend fun parse(bytes: ByteArray, isVideo: Boolean): GenerationMetadata? = withContext(Dispatchers.Default) {
         val json = if (isVideo) Mp4MetadataExtractor.extractPromptMetadata(bytes) else PngMetadataExtractor.extractPromptMetadata(bytes)
         json?.let { MetadataParser.parseWorkflowJson(it) }?.let { metadata ->
-            val size = if (isVideo) Mp4MetadataExtractor.videoSize(bytes) else PngMetadataExtractor.imageSize(bytes)
+            // The server's bytes as they come: a header that can't be read loses only the size, never the metadata
+            val size = runCatching {
+                if (isVideo) Mp4MetadataExtractor.videoSize(bytes) else PngMetadataExtractor.imageSize(bytes)
+            }.getOrNull()
             metadata.copy(fileWidth = size?.first, fileHeight = size?.second)
         }
     }

@@ -31,7 +31,7 @@ object Mp4MetadataExtractor {
         var offset = moov.first
         while (true) {
             val trak = findBox(bytes, offset, moov.second, "trak") ?: return null
-            findBox(bytes, trak.first, trak.second, "tkhd")?.let { tkhd ->
+            findBox(bytes, trak.first, trak.second, "tkhd")?.takeIf { it.second - it.first >= TKHD_V0_SIZE }?.let { tkhd ->
                 // Width and height follow the fields before them: 76 bytes in version 0, 88 in version 1 (64-bit times)
                 val sizeAt = tkhd.first + if (bytes[tkhd.first].toInt() == 1) 88 else 76
                 if (sizeAt + 8 <= tkhd.second) {
@@ -44,6 +44,9 @@ object Mp4MetadataExtractor {
             offset = trak.second
         }
     }
+
+    /** A version 0 track header's content: what it must hold before its version byte is read. */
+    private const val TKHD_V0_SIZE = 84
 
     /**
      * The first box of [type] between [start] and [end], as the range of its content; boxes with a 64-bit size (1)

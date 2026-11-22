@@ -52,6 +52,12 @@ class MediaSizeTest {
     }
 
     @Test
+    fun mp4WithAnEmptyTrackHeaderAtTheEnd_hasNoSize() {
+        // A malformed file: tkhd's content is empty and the file ends there (reading its version byte would overflow)
+        assertNull(Mp4MetadataExtractor.videoSize(box("moov", box("trak", box("tkhd", ByteArray(0))))))
+    }
+
+    @Test
     fun mp4WithoutAVideoTrack_hasNoSize() {
         assertNull(Mp4MetadataExtractor.videoSize(box("moov", box("trak", box("tkhd", ByteArray(84))))))
     }
