@@ -1,0 +1,11 @@
+v0.9.7
+
+New:
+- Open-source licenses under Settings -> About
+- Details show a file's own size after an upscaler
+- Updated libraries (Compose 1.13, Material 3 1.5)
+
+Bug fixes:
+- Models on other nodes than usual, such as an image upscaler, kept after a restart (#63)
+- Workflows imported in ComfyChair's format or saved after editing keep their defaults
+- High and low noise model menus list their own node's models
