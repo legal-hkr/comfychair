@@ -45,7 +45,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Save prompts as reusable presets with custom names and tags
   - Search by name, prompt text or tags, with Favorites and the most used tags as filters under the search field and the match shown in bold
 - **What's new**: This version's release notes under Settings -> About, and a one-time notice after an update
-- **License**: The full GPL-3.0 text under Settings -> About, readable offline
+- **Licenses**: The full GPL-3.0 text and the open-source components the app uses, each with its license, under Settings -> About, readable offline
 - **Errors**: Every error appears as a snackbar; Show opens the whole error (the node that failed with the server's message and traceback, the inputs a server refused, the reason a connection failed) to read or copy
 - **Localization**: Available in English (default), German, French, Polish, Spanish, and Chinese with per-app language selection
 - **Native Android experience**: Built with Kotlin and Jetpack Compose with Material Design 3
@@ -78,7 +78,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Media viewer**:
   - Opens out of the tile or preview and returns into it; swipe down or use predictive back to close
   - Swipe between items, pinch to zoom, double tap to switch between fit and fill, single tap to hide the controls
-  - Save, share, use as source (images, videos, and a video's frame shown or its last frame), details (generation parameters such as prompt, model, seed and steps) and delete
+  - Save, share, use as source (images, videos, and a video's frame shown or its last frame), details (generation parameters such as prompt, model, seed and steps, and the file's own size when an upscaler made it larger) and delete
   - Videos play with sound, on a playback card with a seek slider the picture follows as you drag it, frame-by-frame stepping, play/pause, sound and a remembered loop toggle; it hides while a video plays and comes back when it ends
 - **Undo**: Every deletion of media can be undone for a few seconds before it reaches the server
 - **Media management**: Save to device gallery (Pictures/ComfyChair or Movies/ComfyChair) or share
