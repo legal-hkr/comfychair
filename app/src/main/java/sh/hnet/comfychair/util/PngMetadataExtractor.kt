@@ -22,12 +22,7 @@ object PngMetadataExtractor {
      * @return The prompt JSON string, or null if not found
      */
     fun extractPromptMetadata(bytes: ByteArray): String? {
-        if (bytes.size < 8) return null
-
-        // Verify PNG signature
-        for (i in 0 until 8) {
-            if (bytes[i] != PNG_SIGNATURE[i]) return null
-        }
+        if (!hasSignature(bytes)) return null
 
         var offset = 8 // Skip PNG signature
 
@@ -84,6 +79,21 @@ object PngMetadataExtractor {
      * Parse a tEXt chunk.
      * Format: keyword (1-79 bytes) + null byte + text
      */
+    /**
+     * The image's size from its header (IHDR, always the first chunk), or null when the bytes aren't a PNG. The file's
+     * own size, which an upscaler after decoding makes larger than the size the workflow generated at.
+     */
+    fun imageSize(bytes: ByteArray): Pair<Int, Int>? {
+        if (bytes.size < 24 || !hasSignature(bytes)) return null
+        if (String(bytes, 12, 4, Charsets.US_ASCII) != "IHDR") return null
+        val width = ByteBuffer.wrap(bytes, 16, 4).int
+        val height = ByteBuffer.wrap(bytes, 20, 4).int
+        return if (width > 0 && height > 0) width to height else null
+    }
+
+    private fun hasSignature(bytes: ByteArray): Boolean =
+        bytes.size >= PNG_SIGNATURE.size && PNG_SIGNATURE.indices.all { bytes[it] == PNG_SIGNATURE[it] }
+
     private fun parseTextChunk(bytes: ByteArray, start: Int, length: Int): Pair<String, String>? {
         if (length < 2) return null
 

@@ -18,7 +18,10 @@ data class GenerationMetadata(
     val width: Int? = null,
     val height: Int? = null,
     val vaes: List<String> = emptyList(),
-    val unets: List<String> = emptyList()
+    val unets: List<String> = emptyList(),
+    /** The file's own size, from its header; larger than [width] × [height] after an upscaler */
+    val fileWidth: Int? = null,
+    val fileHeight: Int? = null
 )
 
 /**

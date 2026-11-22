@@ -133,7 +133,7 @@ fun MetadataBottomSheet(
                             items.forEachIndexed { index, item ->
                                 MetadataRow(
                                     label = item.label,
-                                    value = item.value,
+                                    value = item.shown,
                                     shape = segmentedItemShape(index, items.size),
                                     onCopy = { copyToClipboard(context, item.value) },
                                     onSave = if (item.isPositivePrompt) {
@@ -226,7 +226,10 @@ private fun MetadataRow(
  */
 private data class MetadataItem(
     val label: String,
+    /** What Copy and Save take */
     val value: String,
+    /** What the row shows, when it differs from [value] */
+    val shown: String = value,
     val isPositivePrompt: Boolean = false
 )
 
@@ -282,9 +285,15 @@ private fun buildMetadataItems(metadata: GenerationMetadata, context: Context): 
     }
 
     if (metadata.width != null && metadata.height != null) {
+        // The size generated at, as the options take it (copied as before); the file's own after it when an upscaler
+        // made it larger
+        val fileSize = if (metadata.fileWidth != null && metadata.fileHeight != null &&
+            (metadata.fileWidth != metadata.width || metadata.fileHeight != metadata.height)
+        ) " (${metadata.fileWidth}×${metadata.fileHeight})" else ""
         items.add(MetadataItem(
             context.getString(R.string.metadata_size),
-            "${metadata.width} x ${metadata.height}"
+            value = "${metadata.width} x ${metadata.height}",
+            shown = "${metadata.width}×${metadata.height}$fileSize"
         ))
     }
 

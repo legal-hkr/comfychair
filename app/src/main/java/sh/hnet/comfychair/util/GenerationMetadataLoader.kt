@@ -38,6 +38,9 @@ object GenerationMetadataLoader {
 
     suspend fun parse(bytes: ByteArray, isVideo: Boolean): GenerationMetadata? = withContext(Dispatchers.Default) {
         val json = if (isVideo) Mp4MetadataExtractor.extractPromptMetadata(bytes) else PngMetadataExtractor.extractPromptMetadata(bytes)
-        json?.let { MetadataParser.parseWorkflowJson(it) }
+        json?.let { MetadataParser.parseWorkflowJson(it) }?.let { metadata ->
+            val size = if (isVideo) Mp4MetadataExtractor.videoSize(bytes) else PngMetadataExtractor.imageSize(bytes)
+            metadata.copy(fileWidth = size?.first, fileHeight = size?.second)
+        }
     }
 }

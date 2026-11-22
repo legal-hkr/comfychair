@@ -23,6 +23,53 @@ object Mp4MetadataExtractor {
     }
 
     /**
+     * The video track's size from its track header (moov › trak › tkhd, 16.16 fixed point), or null when there's
+     * none: the file's own size, which an upscaler after decoding makes larger than the size the workflow generated at.
+     */
+    fun videoSize(bytes: ByteArray): Pair<Int, Int>? {
+        val moov = findBox(bytes, 0, bytes.size, "moov") ?: return null
+        var offset = moov.first
+        while (true) {
+            val trak = findBox(bytes, offset, moov.second, "trak") ?: return null
+            findBox(bytes, trak.first, trak.second, "tkhd")?.let { tkhd ->
+                // Width and height follow the fields before them: 76 bytes in version 0, 88 in version 1 (64-bit times)
+                val sizeAt = tkhd.first + if (bytes[tkhd.first].toInt() == 1) 88 else 76
+                if (sizeAt + 8 <= tkhd.second) {
+                    val width = readInt32BE(bytes, sizeAt) ushr 16
+                    val height = readInt32BE(bytes, sizeAt + 4) ushr 16
+                    // An audio track's header has no size
+                    if (width > 0 && height > 0) return width to height
+                }
+            }
+            offset = trak.second
+        }
+    }
+
+    /**
+     * The first box of [type] between [start] and [end], as the range of its content; boxes with a 64-bit size (1)
+     * and the last box running to the end (0) included.
+     */
+    private fun findBox(bytes: ByteArray, start: Int, end: Int, type: String): Pair<Int, Int>? {
+        var offset = start
+        while (offset + 8 <= end) {
+            var header = 8
+            val size = when (val size32 = readInt32BE(bytes, offset).toLong() and 0xFFFFFFFFL) {
+                0L -> (end - offset).toLong()
+                1L -> {
+                    if (offset + 16 > end) return null
+                    header = 16
+                    (readInt32BE(bytes, offset + 8).toLong() shl 32) or (readInt32BE(bytes, offset + 12).toLong() and 0xFFFFFFFFL)
+                }
+                else -> size32
+            }
+            if (size < header || offset + size > end) return null
+            if (readBoxType(bytes, offset + 4) == type) return (offset + header) to (offset + size).toInt()
+            offset += size.toInt()
+        }
+        return null
+    }
+
+    /**
      * Extract metadata by parsing MP4 box structure.
      * Looks for moov -> udta -> meta -> ilst or similar structures.
      */
