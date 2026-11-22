@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Backspace
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -41,9 +43,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,7 +58,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,7 +67,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.ui.components.shared.PromptPresetDropdown
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
-import sh.hnet.comfychair.ui.components.shared.rememberSpellCheckVisualTransformation
+import sh.hnet.comfychair.ui.components.shared.rememberSpellCheckOutputTransformation
 import sh.hnet.comfychair.viewmodel.PromptPresetUiState
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 
@@ -232,12 +235,28 @@ private fun PromptEditor(
     val onTextChange = if (tab == PromptTab.POSITIVE) onPositiveChange else onNegativeChange
 
     // The field keeps its own selection; the cursor starts at the end, and changes made elsewhere (a preset, clearing)
-    // replace the text
-    var field by remember(tab) { mutableStateOf(TextFieldValue(text, TextRange(text.length))) }
-    LaunchedEffect(text) { if (text != field.text) field = TextFieldValue(text, TextRange(text.length)) }
+    // replace the text. `synced` is the text last passed either way, so the field's own changes coming back as
+    // `text` don't reset it
+    val field = remember(tab) { TextFieldState(text, TextRange(text.length)) }
+    val synced = remember(tab) { arrayOf(text) }
+    val currentOnTextChange by rememberUpdatedState(onTextChange)
+    LaunchedEffect(field) {
+        snapshotFlow { field.text.toString() }.collect {
+            if (it != synced[0]) {
+                synced[0] = it
+                currentOnTextChange(it)
+            }
+        }
+    }
+    LaunchedEffect(field, text) {
+        if (text != synced[0]) {
+            synced[0] = text
+            field.setTextAndPlaceCursorAtEnd(text)
+        }
+    }
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(tab) { focusRequester.requestFocus() }
-    val transformation = rememberSpellCheckVisualTransformation(text = field.text, enabled = spellCheckEnabled)
+    val transformation = rememberSpellCheckOutputTransformation(field, enabled = spellCheckEnabled)
     val previewBitmap = remember(preview) { preview?.asImageBitmap() }
 
     Dialog(
@@ -286,16 +305,12 @@ private fun PromptEditor(
                 }
 
                 TextField(
-                    value = field,
-                    onValueChange = {
-                        field = it
-                        if (it.text != text) onTextChange(it.text)
-                    },
+                    state = field,
                     placeholder = {
                         Text(stringResource(if (tab == PromptTab.POSITIVE) R.string.hint_describe_generation else R.string.hint_negative_prompt))
                     },
                     textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp),
-                    visualTransformation = transformation,
+                    outputTransformation = transformation,
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = spellCheckEnabled),
                     shape = RoundedCornerShape(24.dp),
                     // No underline: the rounded container is the field

@@ -5,7 +5,10 @@ plugins {
 
 android {
     namespace = "sh.hnet.comfychair"
-    compileSdk = 37
+    compileSdk {
+        // 37.2: Compose 1.13 (BOM 2026.11.01) needs at least 37.1
+        version = release(37) { minorApiLevel = 2 }
+    }
 
     defaultConfig {
         applicationId = "sh.hnet.comfychair"

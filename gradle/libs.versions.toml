@@ -1,5 +1,5 @@
 [versions]
-agp = "9.5.1"
+agp = "9.5.2"
 kotlin = "2.4.21"
 coreKtx = "1.19.1"
 splashscreen = "1.2.0"
@@ -12,12 +12,12 @@ material = "1.14.0"
 activity = "1.13.0"
 activityCompose = "1.13.0"
 okhttp = "5.5.1"
-composeBom = "2026.09.00"
-composeMaterial3 = "1.5.0-rc01"
-lifecycleViewModel = "2.11.0"
+composeBom = "2026.11.01"
+composeMaterial3 = "1.5.0"
+lifecycleViewModel = "2.11.1"
 navigationCompose = "2.10.2"
 media3 = "1.11.1"
-commonmark = "0.32.0"
+commonmark = "0.33.0"
 securityCrypto = "1.1.0"
 
 [libraries]
