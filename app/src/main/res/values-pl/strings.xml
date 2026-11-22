@@ -842,7 +842,7 @@
     <string name="label_licenses">Licencje open source</string>
     <string name="desc_licenses">Składniki open source użyte w aplikacji</string>
     <string name="button_close">Zamknij</string>
-    <string name="msg_no_browser">Brak aplikacji, która otworzy ten link</string>
+    <string name="error_no_browser">Brak aplikacji, która otworzy ten link.</string>
     <string name="msg_about_privacy">Aplikacja łączy się tylko z dodanymi serwerami ComfyUI, a jeśli serwer wymaga logowania przez przeglądarkę – także z jego stroną logowania. Nic innego nie opuszcza telefonu. Bez konta, bez analityki, bez innych usług.</string>
 
     <!-- Debug Logging strings -->

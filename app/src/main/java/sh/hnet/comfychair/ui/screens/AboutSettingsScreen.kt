@@ -4,7 +4,6 @@ package sh.hnet.comfychair.ui.screens
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +31,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import sh.hnet.comfychair.BuildConfig
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.ui.components.WhatsNew
 import sh.hnet.comfychair.ui.components.settings.SettingsGroup
 import sh.hnet.comfychair.ui.components.settings.SettingsLinkRow
@@ -58,7 +58,6 @@ fun AboutSettingsScreen(
         seen = WhatsNew.isSeen(context)
         onPauseOrDispose { }
     }
-    val noBrowser = stringResource(R.string.msg_no_browser)
 
     SettingsPage(stringResource(R.string.title_about_settings), onNavigateBack) {
         Column(
@@ -126,7 +125,7 @@ fun AboutSettingsScreen(
                         try {
                             context.startActivity(Intent(Intent.ACTION_VIEW, "https://$SOURCE_ADDRESS".toUri()))
                         } catch (_: ActivityNotFoundException) {
-                            Toast.makeText(context, noBrowser, Toast.LENGTH_SHORT).show()
+                            AppErrors.notify(context, R.string.error_no_browser)
                         }
                     }
                 )

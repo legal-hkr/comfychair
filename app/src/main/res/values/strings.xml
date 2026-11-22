@@ -945,8 +945,9 @@
     <string name="desc_licenses">Open-source components used by ComfyChair</string>
     <string name="label_apache_license" translatable="false">Apache License 2.0</string>
     <string name="label_bsd_2_clause_license" translatable="false">BSD 2-Clause License</string>
+    <string name="label_bsd_3_clause_license" translatable="false">BSD 3-Clause License</string>
     <string name="button_close">Close</string>
-    <string name="msg_no_browser">No app to open the link</string>
+    <string name="error_no_browser">No app to open the link.</string>
     <string name="msg_about_privacy">ComfyChair talks only to the ComfyUI servers you add, and to a server’s sign-in page when it has one. Nothing else leaves the phone. No account, no analytics, no other service.</string>
 
     <!-- Debug Logging strings -->

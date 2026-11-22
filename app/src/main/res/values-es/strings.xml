@@ -822,7 +822,7 @@
     <string name="label_licenses">Licencias de código abierto</string>
     <string name="desc_licenses">Componentes de código abierto usados en ComfyChair</string>
     <string name="button_close">Cerrar</string>
-    <string name="msg_no_browser">No hay ninguna aplicación para abrir el enlace</string>
+    <string name="error_no_browser">No hay ninguna aplicación para abrir el enlace.</string>
     <string name="msg_about_privacy">ComfyChair solo se comunica con los servidores ComfyUI que añadas y, si un servidor tiene página de inicio de sesión, con ella. Nada más sale del teléfono. Sin cuenta, sin analíticas, sin otros servicios.</string>
 
     <!-- Debug Logging strings -->

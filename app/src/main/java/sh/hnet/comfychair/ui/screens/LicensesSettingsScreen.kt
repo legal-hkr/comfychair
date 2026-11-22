@@ -30,12 +30,14 @@ import sh.hnet.comfychair.ui.components.settings.SettingsTextRow
 private enum class License(@param:StringRes val label: Int, val asset: String) {
     APACHE(R.string.label_apache_license, "licenses/apache-2.0.txt"),
     BSD_2_CLAUSE_COMMONMARK(R.string.label_bsd_2_clause_license, "licenses/bsd-2-clause-commonmark.txt"),
+    BSD_3_CLAUSE_PROTOBUF(R.string.label_bsd_3_clause_license, "licenses/bsd-3-clause-protobuf.txt"),
 }
 
 /**
  * What ships in the app, with its license (checked against the release runtime classpath; update when a dependency is
  * added). A BSD license's text carries the copyright line of its component, so each BSD component has a text of its
- * own. Tink and Gson come only with AndroidX Security: remove them together with it.
+ * own. Tink and Gson come only with AndroidX Security, and Protocol Buffers inside Tink's own jar (relocated, so the
+ * dependency report doesn't list it): remove them together with it.
  */
 private val COMPONENTS = listOf(
     "AndroidX (Jetpack Compose, Material 3, Media3, Navigation, Lifecycle, Activity, AppCompat, Core, Security)" to License.APACHE,
@@ -47,6 +49,7 @@ private val COMPONENTS = listOf(
     "Okio" to License.APACHE,
     "commonmark-java" to License.BSD_2_CLAUSE_COMMONMARK,
     "Tink" to License.APACHE,
+    "Protocol Buffers" to License.BSD_3_CLAUSE_PROTOBUF,
     "Gson" to License.APACHE,
     "Guava" to License.APACHE,
     "Error Prone Annotations" to License.APACHE,
