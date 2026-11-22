@@ -474,6 +474,31 @@ fun SettingsLinkRow(
     }
 }
 
+/** A row of text only, opening something in place (a dialog): e.g. a component and its license. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun SettingsTextRow(shapes: ListItemShapes, title: String, supporting: String? = null, onClick: () -> Unit) {
+    SegmentedListItem(
+        onClick = onClick,
+        shapes = shapes,
+        colors = rowColors(),
+        supportingContent = supporting?.let { { Text(it) } }
+    ) {
+        Text(title)
+    }
+}
+
+/** A short note under a page's groups, in small type (e.g. the privacy note on About). */
+@Composable
+fun SettingsNote(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp)
+    )
+}
+
 /** Confirmation of a destructive action: the dialog pattern's confirmation (A) with the verb in the error colour. */
 @Composable
 fun ConfirmDestructiveDialog(

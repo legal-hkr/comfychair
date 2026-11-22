@@ -839,6 +839,11 @@
     <string name="label_about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
     <string name="msg_license_english_only">Wiążący jest wyłącznie oryginalny tekst w języku angielskim.</string>
     <string name="title_about_source">Kod źródłowy</string>
+    <string name="label_licenses">Licencje open source</string>
+    <string name="desc_licenses">Składniki open source użyte w aplikacji</string>
+    <string name="button_close">Zamknij</string>
+    <string name="msg_no_browser">Brak aplikacji, która otworzy ten link</string>
+    <string name="msg_about_privacy">Aplikacja łączy się tylko z dodanymi serwerami ComfyUI, a jeśli serwer wymaga logowania przez przeglądarkę – także z jego stroną logowania. Nic innego nie opuszcza telefonu. Bez konta, bez analityki, bez innych usług.</string>
 
     <!-- Debug Logging strings -->
     <string name="desc_debug_logging">Przechwytuj logi operacyjne do rozwiązywania problemów</string>

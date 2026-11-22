@@ -941,6 +941,13 @@
     <string name="label_about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
     <string name="msg_license_english_only">Only the original English text is legally binding.</string>
     <string name="title_about_source">Source Code</string>
+    <string name="label_licenses">Open-source licenses</string>
+    <string name="desc_licenses">Open-source components used by ComfyChair</string>
+    <string name="label_apache_license" translatable="false">Apache License 2.0</string>
+    <string name="label_bsd_2_clause_license" translatable="false">BSD 2-Clause License</string>
+    <string name="button_close">Close</string>
+    <string name="msg_no_browser">No app to open the link</string>
+    <string name="msg_about_privacy">ComfyChair talks only to the ComfyUI servers you add, and to a server’s sign-in page when it has one. Nothing else leaves the phone. No account, no analytics, no other service.</string>
 
     <!-- Debug Logging strings -->
     <string name="desc_debug_logging">Capture operational logs for troubleshooting</string>

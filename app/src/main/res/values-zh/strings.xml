@@ -779,6 +779,11 @@
     <string name="label_about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
     <string name="msg_license_english_only">仅英文原文具有法律效力。</string>
     <string name="title_about_source">源代码</string>
+    <string name="label_licenses">开源许可证</string>
+    <string name="desc_licenses">ComfyChair 使用的开源组件</string>
+    <string name="button_close">关闭</string>
+    <string name="msg_no_browser">没有可打开此链接的应用</string>
+    <string name="msg_about_privacy">ComfyChair 只与您添加的 ComfyUI 服务器通信；如果服务器有登录页面，也会访问该页面。其他任何内容都不会离开手机。无需账户，没有统计分析，没有其他服务。</string>
 
     <!-- Debug Logging strings -->
     <string name="desc_debug_logging">捕获操作日志以进行故障排除</string>

@@ -819,6 +819,11 @@
     <string name="label_about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
     <string name="msg_license_english_only">Seul le texte original en anglais a valeur juridique.</string>
     <string name="title_about_source">Code source</string>
+    <string name="label_licenses">Licences open source</string>
+    <string name="desc_licenses">Composants open source utilisés par ComfyChair</string>
+    <string name="button_close">Fermer</string>
+    <string name="msg_no_browser">Aucune application pour ouvrir ce lien</string>
+    <string name="msg_about_privacy">ComfyChair ne communique qu’avec les serveurs ComfyUI que vous ajoutez, et avec la page de connexion d’un serveur s’il en a une. Rien d’autre ne quitte le téléphone. Pas de compte, pas d’analyse, aucun autre service.</string>
 
     <!-- Debug Logging strings -->
     <string name="desc_debug_logging">Capturer les journaux opérationnels pour le dépannage</string>

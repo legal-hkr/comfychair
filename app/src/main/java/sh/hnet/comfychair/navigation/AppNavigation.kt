@@ -46,12 +46,13 @@ sealed class SettingsRoute(val route: String) {
     data object About : SettingsRoute("about_settings")
     data object WhatsNew : SettingsRoute("whats_new_settings")
     data object License : SettingsRoute("license_settings")
+    data object Licenses : SettingsRoute("licenses_settings")
 
     companion object {
         val all: List<SettingsRoute>
             get() = listOf(
                 Server, Workflows, WorkflowDetail, ServerImport, Connection, Generation, MediaPrivacy, Language, WorkflowEditor,
-                Backup, Cache, DebugLog, Reset, About, WhatsNew, License
+                Backup, Cache, DebugLog, Reset, About, WhatsNew, License, Licenses
             )
     }
 }

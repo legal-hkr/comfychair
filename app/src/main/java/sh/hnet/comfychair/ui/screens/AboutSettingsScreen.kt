@@ -2,14 +2,16 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +28,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import sh.hnet.comfychair.BuildConfig
 import sh.hnet.comfychair.R
@@ -33,13 +36,19 @@ import sh.hnet.comfychair.ui.components.WhatsNew
 import sh.hnet.comfychair.ui.components.settings.SettingsGroup
 import sh.hnet.comfychair.ui.components.settings.SettingsLinkRow
 import sh.hnet.comfychair.ui.components.settings.SettingsNavigationRow
+import sh.hnet.comfychair.ui.components.settings.SettingsNote
 import sh.hnet.comfychair.ui.components.settings.SettingsPage
 
+/**
+ * Settings › About, as in the family's other apps: the app's mark, name and version, then What's new (badge New until
+ * opened for this version), License with the open-source licenses under it, Source code; then the privacy note.
+ */
 @Composable
 fun AboutSettingsScreen(
     onNavigateBack: () -> Unit,
     onOpenWhatsNew: () -> Unit,
-    onOpenLicense: () -> Unit
+    onOpenLicense: () -> Unit,
+    onOpenLicenses: () -> Unit
 ) {
     val context = LocalContext.current
     // No row without this version's notes; the badge until the page was opened (checked again on coming back)
@@ -49,6 +58,7 @@ fun AboutSettingsScreen(
         seen = WhatsNew.isSeen(context)
         onPauseOrDispose { }
     }
+    val noBrowser = stringResource(R.string.msg_no_browser)
 
     SettingsPage(stringResource(R.string.title_about_settings), onNavigateBack) {
         Column(
@@ -65,7 +75,7 @@ fun AboutSettingsScreen(
                 style = MaterialTheme.typography.headlineLarge
             )
             Text(
-                text = stringResource(R.string.label_about_version, BuildConfig.VERSION_NAME),
+                text = stringResource(R.string.label_about_version, BuildConfig.VERSION_NAME.removePrefix("v")),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -98,15 +108,31 @@ fun AboutSettingsScreen(
                 )
             }
             row { shapes ->
+                SettingsNavigationRow(
+                    shapes = shapes,
+                    icon = Icons.Rounded.Description,
+                    title = stringResource(R.string.label_licenses),
+                    supporting = stringResource(R.string.desc_licenses),
+                    onClick = onOpenLicenses
+                )
+            }
+            row { shapes ->
                 SettingsLinkRow(
                     shapes = shapes,
                     icon = Icons.Rounded.Code,
                     title = stringResource(R.string.title_about_source),
                     supporting = SOURCE_ADDRESS,
-                    onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://$SOURCE_ADDRESS"))) }
+                    onClick = {
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, "https://$SOURCE_ADDRESS".toUri()))
+                        } catch (_: ActivityNotFoundException) {
+                            Toast.makeText(context, noBrowser, Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 )
             }
         }
+        SettingsNote(stringResource(R.string.msg_about_privacy))
     }
 }
 
