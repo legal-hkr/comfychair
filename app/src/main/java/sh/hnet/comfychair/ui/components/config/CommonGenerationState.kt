@@ -52,6 +52,11 @@ interface CommonGenerationState {
     val filteredLatentUpscaleModels: List<String>?
     val filteredAudioVaes: List<String>?
     val filteredLoras: List<String>?
+    // Dual-model patterns (e.g. Wan 2.2): each from its own node, as the two may differ (a GGUF loader and a plain one)
+    val filteredHighnoiseUnets: List<String>?
+    val filteredLownoiseUnets: List<String>?
+    val filteredHighnoiseLoras: List<String>?
+    val filteredLownoiseLoras: List<String>?
     /** Options of the node that holds {{upscale_method}}; the server-wide list mixes in custom nodes' values */
     val filteredUpscaleMethods: List<String>?
 

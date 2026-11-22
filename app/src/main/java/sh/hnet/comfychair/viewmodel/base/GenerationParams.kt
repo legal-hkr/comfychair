@@ -155,6 +155,10 @@ data class GenerationParams(
     override val filteredLatentUpscaleModels: List<String>? get() = filteredOptions[ModelSlot.LATENT_UPSCALE_MODEL]
     override val filteredAudioVaes: List<String>? get() = filteredOptions[ModelSlot.AUDIO_VAE]
     override val filteredLoras: List<String>? get() = filteredOptions[ModelSlot.LORA]
+    override val filteredHighnoiseUnets: List<String>? get() = filteredOptions[ModelSlot.HIGHNOISE_UNET]
+    override val filteredLownoiseUnets: List<String>? get() = filteredOptions[ModelSlot.LOWNOISE_UNET]
+    override val filteredHighnoiseLoras: List<String>? get() = filteredOptions[ModelSlot.HIGHNOISE_LORA]
+    override val filteredLownoiseLoras: List<String>? get() = filteredOptions[ModelSlot.LOWNOISE_LORA]
 
     /** A model chosen by the user; it wins over a saved one still waiting for the server's lists. */
     fun withSelection(slot: ModelSlot, value: String): GenerationParams =

@@ -51,7 +51,7 @@ fun CommonGenerationState.toBottomSheetConfig(
                 label = R.string.label_highnoise_unet,
                 selectedValue = selectedHighnoiseUnet,
                 options = availableUnets,
-                filteredOptions = filteredUnets,
+                filteredOptions = filteredHighnoiseUnets,
                 onValueChange = callbacks.onHighnoiseUnetChange ?: noOpString,
                 isVisible = true
             ) else null,
@@ -59,7 +59,7 @@ fun CommonGenerationState.toBottomSheetConfig(
                 label = R.string.label_lownoise_unet,
                 selectedValue = selectedLownoiseUnet,
                 options = availableUnets,
-                filteredOptions = filteredUnets,
+                filteredOptions = filteredLownoiseUnets,
                 onValueChange = callbacks.onLownoiseUnetChange ?: noOpString,
                 isVisible = true
             ) else null,
@@ -67,7 +67,7 @@ fun CommonGenerationState.toBottomSheetConfig(
                 label = R.string.label_highnoise_lora,
                 selectedValue = selectedHighnoiseLora,
                 options = availableLoras,
-                filteredOptions = filteredLoras,
+                filteredOptions = filteredHighnoiseLoras,
                 onValueChange = callbacks.onHighnoiseLoraChange ?: noOpString,
                 isVisible = true
             ) else null,
@@ -75,7 +75,7 @@ fun CommonGenerationState.toBottomSheetConfig(
                 label = R.string.label_lownoise_lora,
                 selectedValue = selectedLownoiseLora,
                 options = availableLoras,
-                filteredOptions = filteredLoras,
+                filteredOptions = filteredLownoiseLoras,
                 onValueChange = callbacks.onLownoiseLoraChange ?: noOpString,
                 isVisible = true
             ) else null

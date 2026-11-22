@@ -143,6 +143,26 @@ class GenerationParamsTest {
     }
 
     @Test
+    fun dualModelSlots_eachTakeTheirOwnNodesOptions() {
+        // Wan 2.2 with the high-noise model on a GGUF loader and the low-noise one on UNETLoader
+        val gguf = listOf("wan_high.gguf", "wan_low.gguf")
+        val plain = listOf("wan_low.safetensors")
+        val params = GenerationParams(models = cache).withWorkflow(
+            workflowId = "wf",
+            workflowName = "Workflow",
+            placeholders = setOf("highnoise_unet_name", "lownoise_unet_name", "positive_prompt"),
+            saved = WorkflowValues(highnoiseUnetModel = "wan_high.gguf", lownoiseUnetModel = "wan_low.safetensors"),
+            defaults = null,
+            options = { key -> when (key) { "highnoise_unet_name" -> gguf; "lownoise_unet_name" -> plain; else -> null } },
+            fallback = GenerationParams()
+        ).withModelCache(cache)
+        assertEquals(gguf, params.filteredHighnoiseUnets)
+        assertEquals(plain, params.filteredLownoiseUnets)
+        assertEquals("wan_high.gguf", params.selectedHighnoiseUnet)
+        assertEquals("wan_low.safetensors", params.selectedLownoiseUnet)
+    }
+
+    @Test
     fun savedValuesWinOverDefaultsOverFallback() {
         val params = load(
             WorkflowValues(steps = 8),
