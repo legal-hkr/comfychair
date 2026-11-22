@@ -73,7 +73,9 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
         // Dispatched (not immediate): the subclass's initialState doesn't exist until its constructor has run
         viewModelScope.launch(Dispatchers.Main) {
             ConnectionManager.modelCache.collect { cache ->
-                _uiState.update { state -> state.mapAllParams { it.withModelCache(cache) } }
+                _uiState.update { state ->
+                    state.mapAllParams { params -> params.withModelCache(cache, nodeOptions(params.selectedWorkflowId)) }
+                }
             }
         }
         viewModelScope.launch(Dispatchers.Main) {
@@ -237,11 +239,15 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
             placeholders = WorkflowManager.getWorkflowPlaceholders(workflowId),
             saved = storage.loadValues(serverId, workflowId),
             defaults = WorkflowManager.getWorkflowDefaultsById(workflowId),
-            options = { fieldKey -> WorkflowManager.getNodeSpecificOptionsForField(workflowId, fieldKey) },
+            options = nodeOptions(workflowId) ?: { null },
             fallback = fallback,
             customFields = WorkflowManager.getWorkflowById(workflowId)?.customFields.orEmpty()
         )
     }
+
+    /** A workflow's nodes' own options by field key; null without a workflow. */
+    private fun nodeOptions(workflowId: String): ((String) -> List<String>?)? =
+        workflowId.takeIf { it.isNotEmpty() }?.let { id -> { fieldKey -> WorkflowManager.getNodeSpecificOptionsForField(id, fieldKey) } }
 
     /** Load a workflow's saved values (or template defaults) into the edited params, without saving. */
     protected fun loadWorkflowValues(workflowId: String, workflowName: String) {

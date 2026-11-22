@@ -182,21 +182,29 @@ data class GenerationParams(
     /**
      * Apply the server's model lists: a selection restored before the lists arrived wins if the
      * server has it, otherwise the current selection is kept if valid, or the first model is taken.
+     *
+     * @param options The workflow nodes' own options by field key; the node definitions arrive with the lists, so a
+     *   workflow loaded before them gets its nodes' options here (#63). Null keeps the options found so far.
      */
-    fun withModelCache(cache: ModelCache): GenerationParams = if (!cache.isLoaded) {
+    fun withModelCache(cache: ModelCache, options: ((fieldKey: String) -> List<String>?)? = null): GenerationParams {
         // Lists not there yet (or reloading): selections waiting for them must survive until they arrive
-        copy(models = cache)
-    } else copy(
-        models = cache,
-        selections = ModelSlot.entries.associateWith { slot ->
-            deferredSelections[slot]?.takeIf { it in slot.available(cache) }
-                ?: ValidationUtils.validateModelSelection(selection(slot), slot.available(cache))
-        },
-        deferredSelections = emptyMap(),
-        loraChain = LoraChainManager.filterUnavailable(loraChain, cache.loras),
-        highnoiseLoraChain = LoraChainManager.filterUnavailable(highnoiseLoraChain, cache.loras),
-        lownoiseLoraChain = LoraChainManager.filterUnavailable(lownoiseLoraChain, cache.loras)
-    )
+        if (!cache.isLoaded) return copy(models = cache)
+        val own = options?.let { nodeOptions(it) } ?: filteredOptions
+        return copy(
+            models = cache,
+            filteredOptions = own,
+            filteredUpscaleMethods = if (options != null) options("upscale_method") else filteredUpscaleMethods,
+            selections = ModelSlot.entries.associateWith { slot ->
+                val choices = choices(slot, cache, own)
+                deferredSelections[slot]?.takeIf { it in choices }
+                    ?: ValidationUtils.validateModelSelection(selection(slot), choices)
+            },
+            deferredSelections = emptyMap(),
+            loraChain = LoraChainManager.filterUnavailable(loraChain, cache.loras),
+            highnoiseLoraChain = LoraChainManager.filterUnavailable(highnoiseLoraChain, cache.loras),
+            lownoiseLoraChain = LoraChainManager.filterUnavailable(lownoiseLoraChain, cache.loras)
+        )
+    }
 
     /**
      * Load a workflow: its saved values, else the template's defaults, else [fallback].
@@ -216,6 +224,7 @@ data class GenerationParams(
         val savedSelections = saved?.let { values ->
             ModelSlot.entries.mapNotNull { slot -> slot.saved(values)?.let { slot to it } }.toMap()
         }.orEmpty()
+        val own = nodeOptions(options)
         return copy(
             selectedWorkflow = workflowName,
             selectedWorkflowId = workflowId,
@@ -223,20 +232,16 @@ data class GenerationParams(
             capabilities = WorkflowCapabilities.fromPlaceholders(placeholders),
             negativePrompt = saved?.negativePrompt ?: defaults?.negativePrompt ?: fallback.negativePrompt,
             selections = ModelSlot.entries.associateWith { slot ->
-                savedSelections[slot]?.takeIf { it in slot.available(cache) }
-                    ?: ValidationUtils.validateModelSelection(selection(slot), slot.available(cache))
+                val choices = choices(slot, cache, own)
+                savedSelections[slot]?.takeIf { it in choices }
+                    ?: ValidationUtils.validateModelSelection(selection(slot), choices)
             },
             // Only what couldn't be applied yet waits for the lists: a saved model applied now must not come back over
             // a later choice when the lists are delivered again (a refresh, a reconnection)
             deferredSelections = savedSelections.filter { (slot, value) ->
-                !cache.isLoaded || value !in slot.available(cache)
+                !cache.isLoaded || value !in choices(slot, cache, own)
             },
-            filteredOptions = ModelSlot.entries.mapNotNull { slot ->
-                val own = options(slot.placeholder)
-                    // A dual-model workflow has no plain unet_name; its UNET list comes from the high-noise node
-                    ?: if (slot == ModelSlot.UNET) options(ModelSlot.HIGHNOISE_UNET.placeholder) else null
-                own?.let { slot to it }
-            }.toMap(),
+            filteredOptions = own,
             filteredUpscaleMethods = options("upscale_method"),
             width = saved?.width?.toString() ?: defaults?.width?.toString() ?: fallback.width,
             height = saved?.height?.toString() ?: defaults?.height?.toString() ?: fallback.height,
@@ -266,6 +271,23 @@ data class GenerationParams(
             scaleByError = null, stopAtClipLayerError = null
         )
     }
+
+    /**
+     * The models a slot can take: the workflow node's own options, as its menu shows them, else the server's list for
+     * the slot. They differ when a field sits on another node than the list is read from (#63: the latent upscale
+     * model mapped onto UpscaleModelLoader, whose models aren't LatentUpscaleModelLoader's).
+     */
+    private fun choices(slot: ModelSlot, cache: ModelCache, own: Map<ModelSlot, List<String>>): List<String> =
+        own[slot] ?: slot.available(cache)
+
+    /** Each slot's options from the workflow node holding its placeholder, for the slots the workflow has. */
+    private fun nodeOptions(options: (fieldKey: String) -> List<String>?): Map<ModelSlot, List<String>> =
+        ModelSlot.entries.mapNotNull { slot ->
+            val own = options(slot.placeholder)
+                // A dual-model workflow has no plain unet_name; its UNET list comes from the high-noise node
+                ?: if (slot == ModelSlot.UNET) options(ModelSlot.HIGHNOISE_UNET.placeholder) else null
+            own?.let { slot to it }
+        }.toMap()
 
     /** Selection to store: a model still waiting for the server's lists counts as selected. */
     private fun stored(slot: ModelSlot): String? =

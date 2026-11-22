@@ -101,6 +101,47 @@ class GenerationParamsTest {
         assertEquals("ae.safetensors", values.vaeModel)
     }
 
+    // #63: the latent upscale model mapped onto UpscaleModelLoader, whose models aren't LatentUpscaleModelLoader's
+    private val upscaleCache = cache.copy(latentUpscaleModels = listOf("4x-UltraSharpV2.safetensors"))
+    private val upscalerOptions = listOf("2x-AnimeSharpV4_RCAN.safetensors", "4x-AnimeSharp.pth")
+    private val upscalerNode: (String) -> List<String>? = { key -> upscalerOptions.takeIf { key == "latent_upscale_model" } }
+
+    private fun loadUpscaler(start: GenerationParams, options: (String) -> List<String>?) = start.withWorkflow(
+        workflowId = "wf",
+        workflowName = "Workflow",
+        placeholders = setOf("latent_upscale_model", "positive_prompt"),
+        saved = WorkflowValues(latentUpscaleModel = "2x-AnimeSharpV4_RCAN.safetensors"),
+        defaults = null,
+        options = options,
+        fallback = GenerationParams()
+    )
+
+    @Test
+    fun savedModelInTheNodesOwnOptions_isKeptThoughTheSlotsListLacksIt() {
+        val params = loadUpscaler(GenerationParams(models = upscaleCache), upscalerNode)
+        assertEquals("2x-AnimeSharpV4_RCAN.safetensors", params.selectedLatentUpscaleModel)
+        assertEquals("2x-AnimeSharpV4_RCAN.safetensors", params.withModelCache(upscaleCache).selectedLatentUpscaleModel)
+    }
+
+    @Test
+    fun workflowLoadedBeforeNodeDefinitions_getsTheNodesOptionsWithTheLists() {
+        // At start the workflow is loaded before /object_info has been read: no node options, no lists
+        val params = loadUpscaler(GenerationParams(), options = { null })
+        val loaded = params.withModelCache(upscaleCache, upscalerNode)
+        assertEquals(upscalerOptions, loaded.filteredLatentUpscaleModels)
+        assertEquals("2x-AnimeSharpV4_RCAN.safetensors", loaded.selectedLatentUpscaleModel)
+        // Lists delivered again without a workflow's options keep the ones found
+        assertEquals(upscalerOptions, loaded.withModelCache(upscaleCache).filteredLatentUpscaleModels)
+    }
+
+    @Test
+    fun savedModelMissingFromTheNodesOwnOptions_isNotSelected() {
+        val params = loadUpscaler(GenerationParams(models = upscaleCache)) { key ->
+            listOf("4x-AnimeSharp.pth").takeIf { key == "latent_upscale_model" }
+        }
+        assertEquals("", params.selectedLatentUpscaleModel)
+    }
+
     @Test
     fun savedValuesWinOverDefaultsOverFallback() {
         val params = load(
