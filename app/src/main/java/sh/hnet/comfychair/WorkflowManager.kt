@@ -719,13 +719,13 @@ object WorkflowManager {
     }
 
     /**
-     * A mapped workflow's defaults: the values the mapping took from the nodes, over the file's own defaults. A
-     * workflow in ComfyChair's format (an export, or a user workflow saved again after editing) already holds
-     * placeholders, so its values are only in its defaults; without them it fell back to the app's (CFG 7, 20 steps).
+     * A mapped workflow's defaults: the values the mapping took from the nodes, over the workflow's own defaults ([own]:
+     * the imported file's, or the stored workflow's when it's saved again after editing, as the editor's JSON has
+     * none). A workflow in ComfyChair's format already holds placeholders, so its values are only in its defaults;
+     * without them it fell back to the app's (CFG 7, 20 steps).
      */
-    internal fun mappedDefaults(fileDefaults: JSONObject?, extracted: Map<String, Any>): WorkflowDefaults {
-        val own = WorkflowDefaults.fromJson(fileDefaults)
-        return own.copy(
+    internal fun mappedDefaults(own: WorkflowDefaults, extracted: Map<String, Any>): WorkflowDefaults =
+        own.copy(
             width = (extracted["width"] as? Number)?.toInt() ?: own.width,
             height = (extracted["height"] as? Number)?.toInt() ?: own.height,
             steps = (extracted["steps"] as? Number)?.toInt() ?: own.steps,
@@ -735,9 +735,13 @@ object WorkflowManager {
             negativePrompt = extracted["negative_text"] as? String ?: own.negativePrompt,
             megapixels = (extracted["megapixels"] as? Number)?.toFloat() ?: own.megapixels,
             length = (extracted["length"] as? Number)?.toInt() ?: own.length,
-            frameRate = (extracted["frame_rate"] as? Number)?.toInt() ?: own.frameRate
+            frameRate = (extracted["frame_rate"] as? Number)?.toInt() ?: own.frameRate,
+            seed = (extracted["seed"] as? Number)?.toLong() ?: own.seed,
+            denoise = (extracted["denoise"] as? Number)?.toFloat() ?: own.denoise,
+            batchSize = (extracted["batch_size"] as? Number)?.toInt() ?: own.batchSize,
+            scaleBy = (extracted["scale_by"] as? Number)?.toFloat() ?: own.scaleBy,
+            stopAtClipLayer = (extracted["stop_at_clip_layer"] as? Number)?.toInt() ?: own.stopAtClipLayer
         )
-    }
 
     /**
      * Add a user workflow with explicit type and field mappings
@@ -850,7 +854,7 @@ object WorkflowManager {
 
         // Create defaults object from extracted values
         // Field visibility is determined by placeholder detection, not by has* flags
-        val defaults = mappedDefaults(if (isWrapped) json.optJSONObject("defaults") else null, extractedDefaults)
+        val defaults = mappedDefaults(WorkflowDefaults.fromJson(if (isWrapped) json.optJSONObject("defaults") else null), extractedDefaults)
 
         // Create wrapped JSON with metadata and defaults
         val finalJson = JSONObject().apply {
@@ -1044,7 +1048,7 @@ object WorkflowManager {
 
         // Create defaults object from extracted values
         // Field visibility is determined by placeholder detection, not by has* flags
-        val defaults = mappedDefaults(if (isWrapped) json.optJSONObject("defaults") else null, extractedDefaults)
+        val defaults = mappedDefaults(existingWorkflow.defaults, extractedDefaults)
 
         // Create wrapped JSON with original metadata preserved
         val finalJson = JSONObject().apply {
