@@ -13,10 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
@@ -29,7 +27,7 @@ private const val SPELL_CHECK_DEBOUNCE_MS = 600L
 
 /**
  * Returns an [OutputTransformation] that underlines misspelled words in [state] using the device's spell checker
- * service ([TextServicesManager]), or null when there is nothing to underline.
+ * service ([TextServicesManager]), or null when [enabled] is false. The same transformation stays while the text and its underlines change.
  *
  * Checks are debounced: [SPELL_CHECK_DEBOUNCE_MS] ms must pass without text changes before the checker is invoked.
  * When [enabled] is false, no session is opened.
@@ -41,7 +39,9 @@ fun rememberSpellCheckOutputTransformation(
 ): OutputTransformation? {
     val context = LocalContext.current
     val underlineColor = MaterialTheme.colorScheme.error
-    var misspelledRanges by remember { mutableStateOf<List<TextRange>>(emptyList()) }
+    // Read by the transformation itself, so new underlines redraw the text without a new transformation: a new one
+    // makes the field restart the keyboard's input session (Compose 1.13), mid-word while typing
+    val misspelledRanges = remember { mutableStateOf<List<TextRange>>(emptyList()) }
     // Plain array holder – mutations don't need to trigger recomposition
     val sessionHolder = remember { arrayOfNulls<SpellCheckerSession>(1) }
 
@@ -66,16 +66,23 @@ fun rememberSpellCheckOutputTransformation(
                             }
                         }
                     }
-                    misspelledRanges = ranges
+                    misspelledRanges.value = ranges
                 }
             }
-            @Suppress("DEPRECATION")
-            sessionHolder[0] = tsm.newSpellCheckerSession(null, null, listener, true)
+            // The system's spell checker in the languages set for it, reporting what the old session did
+            val params = SpellCheckerSession.SpellCheckerSessionParams.Builder()
+                .setShouldReferToSpellCheckerLanguageSettings(true)
+                .setSupportedAttributes(
+                    SuggestionsInfo.RESULT_ATTR_IN_THE_DICTIONARY or SuggestionsInfo.RESULT_ATTR_LOOKS_LIKE_TYPO or
+                        SuggestionsInfo.RESULT_ATTR_HAS_RECOMMENDED_SUGGESTIONS
+                )
+                .build()
+            sessionHolder[0] = tsm.newSpellCheckerSession(params, context.mainExecutor, listener)
         }
         onDispose {
             sessionHolder[0]?.close()
             sessionHolder[0] = null
-            misspelledRanges = emptyList()
+            misspelledRanges.value = emptyList()
         }
     }
 
@@ -83,28 +90,26 @@ fun rememberSpellCheckOutputTransformation(
     LaunchedEffect(state, enabled) {
         if (!enabled) return@LaunchedEffect
         snapshotFlow { state.text.toString() }.collectLatest { text ->
-            misspelledRanges = emptyList()
+            misspelledRanges.value = emptyList()
             if (text.isBlank()) return@collectLatest
             delay(SPELL_CHECK_DEBOUNCE_MS)
             sessionHolder[0]?.getSentenceSuggestions(arrayOf(TextInfo(text)), 3)
         }
     }
 
-    return remember(misspelledRanges, underlineColor, enabled) {
-        if (!enabled || misspelledRanges.isEmpty()) {
-            null
-        } else {
-            SpellCheckOutputTransformation(misspelledRanges, SpanStyle(textDecoration = TextDecoration.Underline, color = underlineColor))
-        }
+    val transformation = remember(underlineColor) {
+        SpellCheckOutputTransformation({ misspelledRanges.value }, SpanStyle(textDecoration = TextDecoration.Underline, color = underlineColor))
     }
+    return if (enabled) transformation else null
 }
 
+/** Underlines [misspelledRanges], read when the text is laid out (a snapshot read, so a change redraws it). */
 private class SpellCheckOutputTransformation(
-    private val misspelledRanges: List<TextRange>,
+    private val misspelledRanges: () -> List<TextRange>,
     private val style: SpanStyle
 ) : OutputTransformation {
     override fun TextFieldBuffer.transformOutput() {
-        for (range in misspelledRanges) {
+        for (range in misspelledRanges()) {
             // Clamp to current text length – text may have changed since the async check ran
             val safeStart = range.start.coerceIn(0, length)
             val safeEnd = range.end.coerceIn(safeStart, length)
